@@ -67,6 +67,9 @@ export interface BorcluBilgileri {
   ekSatir?: string;
   ekSatirBaslik?: string;
   ekSatirBirlestir?: boolean;
+  ekSatir2?: string;
+  ekSatirBaslik2?: string;
+  ekSatirBirlestir2?: boolean;
 }
 
 // 81 Türkiye İli Listesi, Plaka Haritası ve İl/SGM Ayrıştırma Motoru sgkFormParser modülünden sağlanır
@@ -365,6 +368,9 @@ export const TaksitFormuModal: React.FC<TaksitFormuModalProps> = ({
     ekSatir: initialBorclu?.ekSatir || '',
     ekSatirBaslik: initialBorclu?.ekSatirBaslik || '',
     ekSatirBirlestir: initialBorclu?.ekSatirBirlestir ?? true,
+    ekSatir2: initialBorclu?.ekSatir2 || '',
+    ekSatirBaslik2: initialBorclu?.ekSatirBaslik2 || '',
+    ekSatirBirlestir2: initialBorclu?.ekSatirBirlestir2 ?? true,
   }));
 
   useEffect(() => {
@@ -914,6 +920,9 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
       ekSatir: '',
       ekSatirBaslik: '',
       ekSatirBirlestir: true,
+      ekSatir2: '',
+      ekSatirBaslik2: '',
+      ekSatirBirlestir2: true,
     });
   };
 
@@ -1192,9 +1201,16 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
               span.textContent = val || ' ';
               span.className = clonedInput.className;
               span.style.cssText = clonedInput.style.cssText;
-              span.style.borderBottom = '1px solid black';
-              span.style.display = 'inline-block';
-              span.style.minWidth = '20px';
+              const isInTable = clonedInput.closest('td') !== null;
+              if (isInTable) {
+                span.style.borderBottom = 'none';
+                span.style.display = 'block';
+                span.style.width = '100%';
+              } else {
+                span.style.borderBottom = '1px solid black';
+                span.style.display = 'inline-block';
+                span.style.minWidth = '20px';
+              }
               clonedInput.parentNode?.replaceChild(span, clonedInput);
             });
           },
@@ -2204,21 +2220,28 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                                 type="text"
                                 value={borclu.gsm}
                                 onChange={(e) => setBorclu({ ...borclu, gsm: e.target.value })}
-                                className="w-full px-1 py-0.5 font-mono focus:bg-amber-50 focus:outline-none text-[10.5px]"
+                                className="w-full px-1.5 py-0.5 font-mono border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
                                 placeholder="05xx xxx xx xx"
                               />
                             </td>
                           </tr>
-                          {/* GSM Telefon No Altındaki Kullanıcı Satırı (Asla 'Not' yazılmaz, tamamen kullanıcıya özel) */}
+                          {/* GSM Telefon No Altındaki Kullanıcı 1. Satırı (Kesinlikle 'Not' yazılmaz, çerçevesiz) */}
                           <tr>
                             {borclu.ekSatirBirlestir !== false ? (
                               <td colSpan={2} className="border border-black p-0 relative group">
                                 <div className="flex items-center w-full">
                                   <input
                                     type="text"
+                                    id="ek-satir-1-input"
                                     value={borclu.ekSatir || ''}
                                     onChange={(e) => setBorclu({ ...borclu, ekSatir: e.target.value })}
-                                    className="w-full px-1.5 py-0.5 focus:bg-amber-50 focus:outline-none text-[10.5px]"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        document.getElementById('ek-satir-2-input')?.focus();
+                                      }
+                                    }}
+                                    className="w-full px-1.5 py-0.5 border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
                                     placeholder=""
                                   />
                                   <button
@@ -2238,7 +2261,7 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                                     type="text"
                                     value={borclu.ekSatirBaslik || ''}
                                     onChange={(e) => setBorclu({ ...borclu, ekSatirBaslik: e.target.value })}
-                                    className="w-full px-1.5 py-0.5 font-bold focus:bg-amber-50 focus:outline-none text-[10.5px] bg-transparent"
+                                    className="w-full px-1.5 py-0.5 font-bold border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
                                     placeholder=""
                                   />
                                 </td>
@@ -2246,14 +2269,78 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                                   <div className="flex items-center w-full">
                                     <input
                                       type="text"
+                                      id="ek-satir-1-input"
                                       value={borclu.ekSatir || ''}
                                       onChange={(e) => setBorclu({ ...borclu, ekSatir: e.target.value })}
-                                      className="w-full px-1 py-0.5 focus:bg-amber-50 focus:outline-none text-[10.5px]"
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          document.getElementById('ek-satir-2-input')?.focus();
+                                        }
+                                      }}
+                                      className="w-full px-1 py-0.5 border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
                                       placeholder=""
                                     />
                                     <button
                                       type="button"
                                       onClick={() => setBorclu({ ...borclu, ekSatirBirlestir: true })}
+                                      className="print:hidden hidden group-hover:inline-flex items-center px-1.5 py-0.5 text-[9px] text-gray-400 hover:text-blue-700 bg-gray-50 hover:bg-blue-50 border-l border-gray-200 shrink-0 select-none cursor-pointer"
+                                      title="Tek satır olarak birleştir"
+                                    >
+                                      ⊟ Birleştir
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                          {/* GSM Telefon No Altındaki Kullanıcı 2. Satırı (Kesinlikle 'Not' yazılmaz, çerçevesiz) */}
+                          <tr>
+                            {borclu.ekSatirBirlestir2 !== false ? (
+                              <td colSpan={2} className="border border-black p-0 relative group">
+                                <div className="flex items-center w-full">
+                                  <input
+                                    type="text"
+                                    id="ek-satir-2-input"
+                                    value={borclu.ekSatir2 || ''}
+                                    onChange={(e) => setBorclu({ ...borclu, ekSatir2: e.target.value })}
+                                    className="w-full px-1.5 py-0.5 border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
+                                    placeholder=""
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setBorclu({ ...borclu, ekSatirBirlestir2: false })}
+                                    className="print:hidden hidden group-hover:inline-flex items-center px-1.5 py-0.5 text-[9px] text-gray-400 hover:text-blue-700 bg-gray-50 hover:bg-blue-50 border-l border-gray-200 shrink-0 select-none cursor-pointer"
+                                    title="Sütunlara böl"
+                                  >
+                                    ⊞ Böl
+                                  </button>
+                                </div>
+                              </td>
+                            ) : (
+                              <>
+                                <td className="border border-black p-0">
+                                  <input
+                                    type="text"
+                                    value={borclu.ekSatirBaslik2 || ''}
+                                    onChange={(e) => setBorclu({ ...borclu, ekSatirBaslik2: e.target.value })}
+                                    className="w-full px-1.5 py-0.5 font-bold border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
+                                    placeholder=""
+                                  />
+                                </td>
+                                <td className="border border-black p-0 relative group">
+                                  <div className="flex items-center w-full">
+                                    <input
+                                      type="text"
+                                      id="ek-satir-2-input"
+                                      value={borclu.ekSatir2 || ''}
+                                      onChange={(e) => setBorclu({ ...borclu, ekSatir2: e.target.value })}
+                                      className="w-full px-1 py-0.5 border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
+                                      placeholder=""
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setBorclu({ ...borclu, ekSatirBirlestir2: true })}
                                       className="print:hidden hidden group-hover:inline-flex items-center px-1.5 py-0.5 text-[9px] text-gray-400 hover:text-blue-700 bg-gray-50 hover:bg-blue-50 border-l border-gray-200 shrink-0 select-none cursor-pointer"
                                       title="Tek satır olarak birleştir"
                                     >
@@ -2560,21 +2647,28 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                                 type="text"
                                 value={borclu.gsm}
                                 onChange={(e) => setBorclu({ ...borclu, gsm: e.target.value })}
-                                className="w-full px-1 py-0.5 font-mono focus:outline-none text-[10.5px]"
+                                className="w-full px-1.5 py-0.5 font-mono border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
                                 placeholder="05xx xxx xx xx"
                               />
                             </td>
                           </tr>
-                          {/* GSM Telefon No Altındaki Kullanıcı Satırı (Asla 'Not' yazılmaz, tamamen kullanıcıya özel) */}
+                          {/* GSM Telefon No Altındaki Kullanıcı 1. Satırı (Kesinlikle 'Not' yazılmaz, çerçevesiz) */}
                           <tr>
                             {borclu.ekSatirBirlestir !== false ? (
                               <td colSpan={2} className="border border-black p-0 relative group">
                                 <div className="flex items-center w-full">
                                   <input
                                     type="text"
+                                    id="ek1b-satir-1-input"
                                     value={borclu.ekSatir || ''}
                                     onChange={(e) => setBorclu({ ...borclu, ekSatir: e.target.value })}
-                                    className="w-full px-1.5 py-0.5 focus:bg-amber-50 focus:outline-none text-[10.5px]"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        document.getElementById('ek1b-satir-2-input')?.focus();
+                                      }
+                                    }}
+                                    className="w-full px-1.5 py-0.5 border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
                                     placeholder=""
                                   />
                                   <button
@@ -2594,7 +2688,7 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                                     type="text"
                                     value={borclu.ekSatirBaslik || ''}
                                     onChange={(e) => setBorclu({ ...borclu, ekSatirBaslik: e.target.value })}
-                                    className="w-full px-1.5 py-0.5 font-bold focus:bg-amber-50 focus:outline-none text-[10.5px] bg-transparent"
+                                    className="w-full px-1.5 py-0.5 font-bold border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
                                     placeholder=""
                                   />
                                 </td>
@@ -2602,14 +2696,78 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                                   <div className="flex items-center w-full">
                                     <input
                                       type="text"
+                                      id="ek1b-satir-1-input"
                                       value={borclu.ekSatir || ''}
                                       onChange={(e) => setBorclu({ ...borclu, ekSatir: e.target.value })}
-                                      className="w-full px-1 py-0.5 focus:bg-amber-50 focus:outline-none text-[10.5px]"
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          document.getElementById('ek1b-satir-2-input')?.focus();
+                                        }
+                                      }}
+                                      className="w-full px-1 py-0.5 border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
                                       placeholder=""
                                     />
                                     <button
                                       type="button"
                                       onClick={() => setBorclu({ ...borclu, ekSatirBirlestir: true })}
+                                      className="print:hidden hidden group-hover:inline-flex items-center px-1.5 py-0.5 text-[9px] text-gray-400 hover:text-blue-700 bg-gray-50 hover:bg-blue-50 border-l border-gray-200 shrink-0 select-none cursor-pointer"
+                                      title="Tek satır olarak birleştir"
+                                    >
+                                      ⊟ Birleştir
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                          {/* GSM Telefon No Altındaki Kullanıcı 2. Satırı (Kesinlikle 'Not' yazılmaz, çerçevesiz) */}
+                          <tr>
+                            {borclu.ekSatirBirlestir2 !== false ? (
+                              <td colSpan={2} className="border border-black p-0 relative group">
+                                <div className="flex items-center w-full">
+                                  <input
+                                    type="text"
+                                    id="ek1b-satir-2-input"
+                                    value={borclu.ekSatir2 || ''}
+                                    onChange={(e) => setBorclu({ ...borclu, ekSatir2: e.target.value })}
+                                    className="w-full px-1.5 py-0.5 border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
+                                    placeholder=""
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setBorclu({ ...borclu, ekSatirBirlestir2: false })}
+                                    className="print:hidden hidden group-hover:inline-flex items-center px-1.5 py-0.5 text-[9px] text-gray-400 hover:text-blue-700 bg-gray-50 hover:bg-blue-50 border-l border-gray-200 shrink-0 select-none cursor-pointer"
+                                    title="Sütunlara böl"
+                                  >
+                                    ⊞ Böl
+                                  </button>
+                                </div>
+                              </td>
+                            ) : (
+                              <>
+                                <td className="border border-black p-0">
+                                  <input
+                                    type="text"
+                                    value={borclu.ekSatirBaslik2 || ''}
+                                    onChange={(e) => setBorclu({ ...borclu, ekSatirBaslik2: e.target.value })}
+                                    className="w-full px-1.5 py-0.5 font-bold border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
+                                    placeholder=""
+                                  />
+                                </td>
+                                <td className="border border-black p-0 relative group">
+                                  <div className="flex items-center w-full">
+                                    <input
+                                      type="text"
+                                      id="ek1b-satir-2-input"
+                                      value={borclu.ekSatir2 || ''}
+                                      onChange={(e) => setBorclu({ ...borclu, ekSatir2: e.target.value })}
+                                      className="w-full px-1 py-0.5 border-0 border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent shadow-none text-[10.5px]"
+                                      placeholder=""
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setBorclu({ ...borclu, ekSatirBirlestir2: true })}
                                       className="print:hidden hidden group-hover:inline-flex items-center px-1.5 py-0.5 text-[9px] text-gray-400 hover:text-blue-700 bg-gray-50 hover:bg-blue-50 border-l border-gray-200 shrink-0 select-none cursor-pointer"
                                       title="Tek satır olarak birleştir"
                                     >

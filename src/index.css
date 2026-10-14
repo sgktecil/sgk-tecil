@@ -381,7 +381,31 @@ html:not(.dark) .border-slate-500\/15 {
   /* Tablo hücreleri içindeki inputların hücre içinde tekrar alt çizgi çizmesini engelle */
   #printable-form-container table td input,
   #printable-form-container table td textarea {
+    border: none !important;
     border-bottom: none !important;
+    outline: none !important;
+    box-shadow: none !important;
   }
+}
+
+/* Printable Form Table Inputs: Ekranda ve baskıda hücre içi kesinlikle çerçevesiz, temiz yazı */
+#printable-form-container table td input,
+#printable-form-container table td textarea {
+  border: none !important;
+  border-width: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  background-color: transparent !important;
+}
+
+#printable-form-container table td input:focus,
+#printable-form-container table td textarea:focus {
+  border: none !important;
+  border-width: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  background-color: transparent !important;
 }
 

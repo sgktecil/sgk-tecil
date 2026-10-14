@@ -192,6 +192,9 @@ export default function App() {
     ekSatir?: string;
     ekSatirBaslik?: string;
     ekSatirBirlestir?: boolean;
+    ekSatir2?: string;
+    ekSatirBaslik2?: string;
+    ekSatirBirlestir2?: boolean;
   }>({
     ilMudurlugu: 'ORDU',
     sgkMerkezi: 'ALTINORDU',
@@ -209,6 +212,9 @@ export default function App() {
     ekSatir: '',
     ekSatirBaslik: '',
     ekSatirBirlestir: true,
+    ekSatir2: '',
+    ekSatirBaslik2: '',
+    ekSatirBirlestir2: true,
   });
 
   const handleTransferFromDokum = (
