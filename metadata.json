@@ -1,0 +1,6 @@
+{
+  "name": "SGK 6183/48 Tecil ve Taksitlendirme",
+  "description": "SGK 6183 sayılı Kanunun 48. maddesi ve 2024/12 (2026/15) Genelgelerine tam uyumlu tecil, taksitlendirme ve resmî form hazırlama aracı.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
