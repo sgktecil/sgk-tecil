@@ -74,10 +74,13 @@ export default function App() {
   // Form Inputs
   const [borcInput, setBorcInput] = useState('12.000.000,00');
   const [taksitSayisi, setTaksitSayisi] = useState(36);
+  const [taksitInput, setTaksitInput] = useState('36');
   const [pesinatTarihi, setPesinatTarihi] = useState(() => getTodayDateISO());
   const [faizOraniInput, setFaizOraniInput] = useState('39');
   const [teminatLimitiInput, setTeminatLimitiInput] = useState('10.000.000,00');
-  const [pesinatInput, setPesinatInput] = useState('1.200.000,00');
+  // Peşinat modu: 'taksiteGore' (Borç / Taksit Sayısı) | 'yuzdeOn' (Borç * 0.10) | 'manuel'
+  const [pesinatMode, setPesinatMode] = useState<'taksiteGore' | 'yuzdeOn' | 'manuel'>('taksiteGore');
+  const [pesinatInput, setPesinatInput] = useState('333.333,33');
 
   // Accordion toggles
   const [likiditeOpen, setLikiditeOpen] = useState(false);
@@ -117,9 +120,18 @@ export default function App() {
     const numeric = parseTL(borcInput);
     if (numeric > 0) {
       setBorcInput(formatTL(numeric));
-      // SGK 6183/48 gereği zorunlu asgari %10 peşinat
-      const autoPesinat = Math.round(numeric * 0.10 * 100) / 100;
+      let autoPesinat = 0;
+      if (pesinatMode === 'taksiteGore') {
+        autoPesinat = Math.round((numeric / taksitSayisi) * 100) / 100;
+      } else if (pesinatMode === 'yuzdeOn') {
+        autoPesinat = Math.round(numeric * 0.10 * 100) / 100;
+      } else {
+        autoPesinat = parseTL(pesinatInput);
+      }
       setPesinatInput(formatTL(autoPesinat));
+      const faiz = parseFloat(faizOraniInput) || 39;
+      const res = calculate6183(numeric, taksitSayisi, autoPesinat, pesinatTarihi, faiz);
+      setHesapSonucu(res);
     }
   };
 
@@ -134,8 +146,16 @@ export default function App() {
 
   const handleSelectAlternativeVade = (newVade: number) => {
     setTaksitSayisi(newVade);
+    setTaksitInput(newVade.toString());
     const borc = parseTL(borcInput);
-    const autoPesinat = Math.round(borc * 0.10 * 100) / 100;
+    let autoPesinat = 0;
+    if (pesinatMode === 'taksiteGore') {
+      autoPesinat = Math.round((borc / newVade) * 100) / 100;
+    } else if (pesinatMode === 'yuzdeOn') {
+      autoPesinat = Math.round(borc * 0.10 * 100) / 100;
+    } else {
+      autoPesinat = parseTL(pesinatInput);
+    }
     setPesinatInput(formatTL(autoPesinat));
     const faiz = parseFloat(faizOraniInput) || 39;
     const res = calculate6183(borc, newVade, autoPesinat, pesinatTarihi, faiz);
@@ -145,21 +165,57 @@ export default function App() {
 
   const handleTaksitSayisiChange = (newVade: number) => {
     if (isNaN(newVade) || newVade <= 0) return;
-    setTaksitSayisi(newVade);
+    const validVade = Math.min(72, Math.max(1, newVade));
+    setTaksitSayisi(validVade);
+    setTaksitInput(validVade.toString());
     const borc = parseTL(borcInput);
-    const pesinat = parseTL(pesinatInput);
+    let pesinat = parseTL(pesinatInput);
+    if (pesinatMode === 'taksiteGore') {
+      pesinat = Math.round((borc / validVade) * 100) / 100;
+      setPesinatInput(formatTL(pesinat));
+    }
     const faiz = parseFloat(faizOraniInput) || 39;
-    const res = calculate6183(borc, newVade, pesinat, pesinatTarihi, faiz);
+    const res = calculate6183(borc, validVade, pesinat, pesinatTarihi, faiz);
     setHesapSonucu(res);
+  };
+
+  const setPesinatModeTaksit = (targetTaksit = taksitSayisi) => {
+    const borc = parseTL(borcInput);
+    const validT = targetTaksit || 1;
+    const autoP = Math.round((borc / validT) * 100) / 100;
+    setPesinatMode('taksiteGore');
+    setPesinatInput(formatTL(autoP));
+    const faiz = parseFloat(faizOraniInput) || 39;
+    const res = calculate6183(borc, validT, autoP, pesinatTarihi, faiz);
+    setHesapSonucu(res);
+    showToast(`İlk taksit ${validT} aya eşit bölünerek (${formatTL(autoP)} ₺) ayarlandı.`);
+  };
+
+  const setPesinatModeYuzdeOn = () => {
+    const borc = parseTL(borcInput);
+    const autoP = Math.round(borc * 0.10 * 100) / 100;
+    setPesinatMode('yuzdeOn');
+    setPesinatInput(formatTL(autoP));
+    const faiz = parseFloat(faizOraniInput) || 39;
+    const res = calculate6183(borc, taksitSayisi, autoP, pesinatTarihi, faiz);
+    setHesapSonucu(res);
+    showToast(`İlk taksit yasal asgari 1/10 (%10 = ${formatTL(autoP)} ₺) olarak ayarlandı.`);
   };
 
   const handleBorcChangeFromModal = (newBorc: number, newPesinat?: number) => {
     if (isNaN(newBorc) || newBorc <= 0) return;
     setBorcInput(formatTL(newBorc));
-    const pesinatVal = newPesinat !== undefined ? newPesinat : parseTL(pesinatInput);
-    if (newPesinat !== undefined) {
-      setPesinatInput(formatTL(newPesinat));
+    let pesinatVal = newPesinat;
+    if (pesinatVal === undefined) {
+      if (pesinatMode === 'taksiteGore') {
+        pesinatVal = Math.round((newBorc / taksitSayisi) * 100) / 100;
+      } else if (pesinatMode === 'yuzdeOn') {
+        pesinatVal = Math.round(newBorc * 0.10 * 100) / 100;
+      } else {
+        pesinatVal = parseTL(pesinatInput);
+      }
     }
+    setPesinatInput(formatTL(pesinatVal));
     const faiz = parseFloat(faizOraniInput) || 39;
     const res = calculate6183(newBorc, taksitSayisi, pesinatVal, pesinatTarihi, faiz);
     setHesapSonucu(res);
@@ -227,12 +283,19 @@ export default function App() {
     if (amount > 0) {
       const formatted = formatTL(amount);
       setBorcInput(formatted);
-      const autoPesinat = Math.round(amount * 0.10 * 100) / 100;
+      let autoPesinat = 0;
+      if (pesinatMode === 'taksiteGore') {
+        autoPesinat = Math.round((amount / taksitSayisi) * 100) / 100;
+      } else if (pesinatMode === 'yuzdeOn') {
+        autoPesinat = Math.round(amount * 0.10 * 100) / 100;
+      } else {
+        autoPesinat = Math.round((amount / taksitSayisi) * 100) / 100;
+      }
       setPesinatInput(formatTL(autoPesinat));
       const faiz = parseFloat(faizOraniInput) || 39;
       const res = calculate6183(amount, taksitSayisi, autoPesinat, pesinatTarihi, faiz);
       setHesapSonucu(res);
-      showToast(`SGK dökümündeki Genel Toplam (${formatted} ₺) Borç Tutarı (Prim Aslı) alanına aktarıldı ve tecil taksit planı güncellendi.`);
+      showToast(`SGK dökümündeki tutar (${formatted} ₺) aktarıldı. İlk taksit (${formatTL(autoPesinat)} ₺) tecil planına yansıtıldı.`);
     }
 
     if (unvan || sicilNo || adres || sgm) {
@@ -323,6 +386,8 @@ export default function App() {
           onPesinatChange={handlePesinatChangeFromModal}
           pesinatTutari={parseTL(pesinatInput)}
           pesinatTarihi={pesinatTarihi}
+          pesinatModeProp={pesinatMode}
+          onPesinatModeChange={setPesinatMode}
           likiditeOrani={likiditeTab === 'bilanco' ? bilancoOrani : isletmeOrani}
           likiditeTab={likiditeTab}
           bilancoData={{ dv: bDv, stok: bStok, ky: bKy }}
@@ -384,31 +449,76 @@ export default function App() {
 
               {/* Taksit Sayısı */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  Taksit Sayısı (Ay) *
-                </label>
-                <select
-                  value={taksitSayisi}
-                  onChange={(e) => {
-                    const newV = Number(e.target.value);
-                    handleTaksitSayisiChange(newV);
-                  }}
-                  className="form-control-custom font-bold"
-                >
-                  <option value={6}>6 Ay</option>
-                  <option value={9}>9 Ay</option>
-                  <option value={12}>12 Ay (1 Yıl)</option>
-                  <option value={18}>18 Ay</option>
-                  <option value={24}>24 Ay (2 Yıl)</option>
-                  <option value={30}>30 Ay</option>
-                  <option value={36}>36 Ay (3 Yıl - Standart)</option>
-                  <option value={48}>48 Ay (Likidite ≤ 0.50)</option>
-                  <option value={60}>60 Ay (Likidite ≤ 0.50)</option>
-                  <option value={72}>72 Ay (Likidite ≤ 0.50 - Azami)</option>
-                  {![6, 9, 12, 18, 24, 30, 36, 48, 60, 72].includes(taksitSayisi) && (
-                    <option value={taksitSayisi}>{taksitSayisi} Ay (Özel Seçim)</option>
-                  )}
-                </select>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Taksit Sayısı (Ay) *
+                  </label>
+                  <span className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold">
+                    1 - 72 Ay Doğrudan Giriş
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={taksitInput}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^\d]/g, '');
+                      setTaksitInput(val);
+                      const num = parseInt(val, 10);
+                      if (!isNaN(num) && num >= 1 && num <= 72) {
+                        handleTaksitSayisiChange(num);
+                      }
+                    }}
+                    onBlur={() => {
+                      const num = parseInt(taksitInput.replace(/[^\d]/g, ''), 10);
+                      if (isNaN(num) || num < 1) {
+                        handleTaksitSayisiChange(1);
+                        setTaksitInput('1');
+                      } else if (num > 72) {
+                        handleTaksitSayisiChange(72);
+                        setTaksitInput('72');
+                      } else {
+                        handleTaksitSayisiChange(num);
+                        setTaksitInput(num.toString());
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const num = parseInt(taksitInput.replace(/[^\d]/g, ''), 10);
+                        if (!isNaN(num) && num >= 1 && num <= 72) {
+                          handleTaksitSayisiChange(num);
+                        }
+                      }
+                    }}
+                    className="form-control-custom font-black text-slate-900 dark:text-slate-100 pr-9 text-base w-full"
+                    placeholder="Örn: 59"
+                    required
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">Ay</span>
+                </div>
+
+                {/* Hızlı Vade Seçimi - Tek Satır (Asla 2 satıra taşmaz) */}
+                <div className="flex items-center justify-between gap-1 pt-0.5 flex-nowrap text-[10px]">
+                  <span className="text-slate-400 font-bold shrink-0">Hızlı:</span>
+                  {[12, 24, 36, 48, 59, 72].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => handleTaksitSayisiChange(m)}
+                      className={`px-1.5 py-0.5 rounded font-extrabold text-[10px] transition-all cursor-pointer shrink-0 ${
+                        taksitSayisi === m
+                          ? 'bg-teal-600 text-white shadow-xs'
+                          : 'bg-slate-500/10 hover:bg-slate-500/20 text-slate-700 dark:text-slate-300'
+                      }`}
+                      title={`${m} ay vadeyi doğrudan seç`}
+                    >
+                      {m} Ay
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Yasal Teminat Muafiyet Limiti */}
@@ -458,14 +568,54 @@ export default function App() {
 
               {/* İlk Taksit / Peşinat */}
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                  <span>İlk Taksit / Peşinat *</span>
-                </label>
+                <div className="flex items-center justify-between flex-wrap gap-1.5">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <span>İlk Taksit / Peşinat *</span>
+                    <span className={
+                      pesinatMode === 'taksiteGore' ? 'text-[10px] px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-300 font-bold border border-teal-500/20' :
+                      pesinatMode === 'yuzdeOn' ? 'text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold border border-amber-500/20' :
+                      'text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 font-bold border border-blue-500/20'
+                    }>
+                      {pesinatMode === 'taksiteGore' ? `⚡ 1/${taksitSayisi} Taksite Göre Eşit Bölündü` :
+                       pesinatMode === 'yuzdeOn' ? '🏛️ 1/10 (%10 Yasal Asgari)' :
+                       '✍️ Manuel Giriş'}
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setPesinatModeTaksit()}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg font-bold cursor-pointer transition-all flex items-center gap-1 ${
+                        pesinatMode === 'taksiteGore'
+                          ? 'bg-teal-600 text-white shadow-xs'
+                          : 'bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20'
+                      }`}
+                      title={`Borç tutarını talep edilen ${taksitSayisi} taksite eşit böler (Borç / ${taksitSayisi})`}
+                    >
+                      ⚡ Taksite Böl (1/{taksitSayisi})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={setPesinatModeYuzdeOn}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg font-bold cursor-pointer transition-all flex items-center gap-1 ${
+                        pesinatMode === 'yuzdeOn'
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
+                      }`}
+                      title="6183/48 gereği borcun kanuni asgari 1/10'u (%10) peşinata eşitlenir"
+                    >
+                      🏛️ 1/10 (%10 Asgari)
+                    </button>
+                  </div>
+                </div>
                 <div className="relative">
                   <input
                     type="text"
                     value={pesinatInput}
-                    onChange={(e) => setPesinatInput(e.target.value)}
+                    onChange={(e) => {
+                      setPesinatInput(e.target.value);
+                      setPesinatMode('manuel');
+                    }}
                     onBlur={() => {
                       const num = parseTL(pesinatInput);
                       if (num >= 0) setPesinatInput(formatTL(num));
@@ -474,6 +624,18 @@ export default function App() {
                     placeholder="333.333,33"
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">₺</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono px-1">
+                  <span>
+                    {pesinatMode === 'taksiteGore'
+                      ? `Borç tutarı doğrudan ${taksitSayisi} aya bölünmüştür (İlk taksit = 1/${taksitSayisi} pay).`
+                      : pesinatMode === 'yuzdeOn'
+                      ? `Borcun 1/10'u (%10) peşinat alınmış, kalan borç ${taksitSayisi} aya taksitlendirilmiştir.`
+                      : 'Kullanıcı tarafından serbest tutar girildi.'}
+                  </span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">
+                    %{parseTL(borcInput) > 0 ? ((parseTL(pesinatInput) / parseTL(borcInput)) * 100).toFixed(1) : '0.0'}
+                  </span>
                 </div>
               </div>
             </div>

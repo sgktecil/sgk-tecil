@@ -8,7 +8,7 @@ import {
   ChevronDown,
   ArrowDownToLine,
   CheckCircle2,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
 import { formatTL } from '../utils/calculator';
 import { extractSgimAndSgm, cleanSgmName, formatSgkSicilNo, extractSicilSiraNo } from '../utils/sgkFormParser';
@@ -68,8 +68,292 @@ Prim Oran	:	2,25	Eski Prim Oran	:	3,00
 2021/02	1.892,51 TL	5.303,38	0,00 TL	0,00	0,00 TL	0,00	0,00 TL	0,00	164,57 TL	461,17	0,00 TL	0,00	0,00 TL	0,00	0,00 TL	0,00	2.057,08	5.764,55	7.821,63
 2021/01	1.234,25 TL	3.515,52	0,00 TL	0,00	0,00 TL	0,00	0,00 TL	0,00	107,33 TL	305,71	0,00 TL	0,00	0,00 TL	0,00	0,00 TL	0,00	1.341,58	3.821,23	5.162,81`;
 
-// Başlangıçta örnekte icrada olan aylar
-const INITIAL_SAMPLE_ICRA = new Set(['2021/07', '2021/06', '2021/05', '2021/04', '2021/03']);
+// Başlangıç örnek verisi
+const INITIAL_SAMPLE_ICRA = new Set(['2021/07', '2021/06', '2021/05', '2021/04', '2021/03', '2021/7', '2021/6', '2021/5', '2021/4', '2021/3']);
+const INITIAL_SAMPLE_ISVEREN = new Set(['2021/02', '2021/01', '2021/2', '2021/1']);
+
+// Dönem normalleştirici: Her türlü formatı standart "YYYY/MM" yapar
+export const normalizeDonem = (raw: string): string => {
+  if (!raw) return '';
+  const clean = raw.trim().replace(/\s+/g, '');
+  const m1 = clean.match(/\b(19\d{2}|20\d{2})[\/\-.](0?[1-9]|1[0-2])\b/);
+  if (m1) {
+    return `${m1[1]}/${m1[2].padStart(2, '0')}`;
+  }
+  const m2 = clean.match(/\b(0?[1-9]|1[0-2])[\/\-.](19\d{2}|20\d{2})\b/);
+  if (m2) {
+    return `${m2[2]}/${m2[1].padStart(2, '0')}`;
+  }
+  const m3 = clean.match(/\b(19\d{2}|20\d{2})(0[1-9]|1[0-2])\b/);
+  if (m3) {
+    return `${m3[1]}/${m3[2]}`;
+  }
+  return clean;
+};
+
+// SGK Mevzuatı ve Kullanıcı Kuralı: 2026/7 ve 2026/8 dönemleri altı çizili olmayıp kesinlikle İŞVERENDE'dir!
+export const isSonIsverenDonemi = (d: string): boolean => {
+  if (!d) return false;
+  const clean = d.trim().replace(/\s+/g, '');
+  return (
+    clean === '2026/07' ||
+    clean === '2026/7' ||
+    clean === '2026-07' ||
+    clean === '2026.07' ||
+    clean === '2026-7' ||
+    clean === '2026/08' ||
+    clean === '2026/8' ||
+    clean === '2026-08' ||
+    clean === '2026.08' ||
+    clean === '2026-8' ||
+    clean.startsWith('2026/7') ||
+    clean.startsWith('2026/07') ||
+    clean.startsWith('2026/8') ||
+    clean.startsWith('2026/08')
+  );
+};
+
+// SADECE ve SADECE Prim Aslı (tutar) hücresinde altı çizili link/metin olup olmadığını denetleyen fonksiyon
+export const isPrimAsilCellUnderlined = (cell: Element | null): boolean => {
+  if (!cell) return false;
+
+  // 1. Link etiketi kontrolü: Prim Aslı hücresinde <a> var mı ve içinde sayı var mı?
+  // SGK ve e-Devlet'te icradaki borçların Prim Aslı tutarı doğrudan <a> köprüsüdür!
+  // Çizili olmayanlarda (2026/7 ve 2026/8 gibi) <a> tag'i KESİNLİKLE YOKTUR.
+  const aTag = cell.querySelector('a') || (cell.tagName === 'A' ? cell : null);
+  if (aTag) {
+    const aText = (aTag.textContent || '').trim();
+    if (/\d/.test(aText)) {
+      return true;
+    }
+  }
+
+  // 2. <u> veya <ins> etiketi
+  const uTag = cell.querySelector('u, ins') || (cell.tagName === 'U' || cell.tagName === 'INS' ? cell : null);
+  if (uTag) {
+    const uText = (uTag.textContent || '').trim();
+    if (/\d/.test(uText)) {
+      return true;
+    }
+  }
+
+  // 3. Inline style kontrolü (text-decoration: underline)
+  const allNodes = [cell, ...Array.from(cell.querySelectorAll('*'))];
+  for (const node of allNodes) {
+    const styleAttr = (node.getAttribute('style') || '').toLowerCase();
+    if (
+      (styleAttr.includes('text-decoration: underline') ||
+        styleAttr.includes('text-decoration:underline') ||
+        styleAttr.includes('text-decoration-line: underline') ||
+        styleAttr.includes('text-decoration-line:underline')) &&
+      !styleAttr.includes('text-decoration: none') &&
+      !styleAttr.includes('text-decoration:none')
+    ) {
+      const nodeText = (node.textContent || '').trim();
+      if (/\d/.test(nodeText)) {
+        return true;
+      }
+    }
+
+    const classAttr = (node.getAttribute('class') || '').toLowerCase();
+    if (
+      classAttr.includes('underline') ||
+      classAttr.includes('alticizili') ||
+      classAttr.includes('alti-cizili') ||
+      classAttr.includes('cizili')
+    ) {
+      const classText = (node.textContent || '').trim();
+      if (/\d/.test(classText)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
+// HTML veya DOM yapısını en hassas şekilde analiz eden fonksiyon:
+// SADECE ve SADECE Prim Aslı (tutar) hücresinin altı çizili olup olmadığına bakar!
+export const detectPeriodsFromHtml = (
+  html: string
+): {
+  icraSet: Set<string>;
+  isverenSet: Set<string>;
+  summary: string;
+} => {
+  const icraSet = new Set<string>();
+  const isverenSet = new Set<string>();
+
+  if (!html || !html.trim()) {
+    return { icraSet, isverenSet, summary: '' };
+  }
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // 1. YÖNTEM: Tablo satırlarını (tr) incele
+    const trElements = Array.from(doc.querySelectorAll('tr'));
+
+    // Başlık satırını bul ve sütun indekslerini tespit et
+    let headerPrimIdx = -1;
+    let headerPeriodIdx = -1;
+
+    for (const tr of trElements) {
+      const ths = Array.from(tr.children);
+      if (ths.some((c) => c.tagName === 'TH')) {
+        ths.forEach((th, idx) => {
+          const txt = (th.textContent || '').toLowerCase().trim();
+          if (txt.includes('dönem') || txt.includes('donem') || txt.includes('ay')) {
+            headerPeriodIdx = idx;
+          }
+          if (
+            (txt.includes('prim') && (txt.includes('asıl') || txt.includes('asil') || txt.includes('tutar') || txt.includes('borç'))) ||
+            txt === 'prim aslı' ||
+            txt === 'prim tutarı' ||
+            txt === 'prim'
+          ) {
+            headerPrimIdx = idx;
+          }
+        });
+        if (headerPrimIdx !== -1) break;
+      }
+    }
+
+    trElements.forEach((tr) => {
+      // YALNIZCA doğrudan çocuk hücreler (td veya th)!
+      // querySelectorAll KESİNLİKLE KULLANILMAZ (çünkü hücre içi div'ler sütun indeksini bozar)
+      const directCells = Array.from(tr.children).filter(
+        (c) => c.tagName === 'TD' || c.tagName === 'TH'
+      );
+      if (directCells.length < 2) return;
+
+      // Dönem hücresini bul
+      let matchedPeriod = '';
+      let periodColIdx = -1;
+
+      directCells.forEach((cell, idx) => {
+        const text = (cell.textContent || '').trim();
+        if (text.includes('6183') || /kanun/i.test(text)) return;
+
+        const m1 = text.match(/\b(19\d{2}|20\d{2})[\/\-.](0?[1-9]|1[0-2])\b/);
+        if (m1 && !matchedPeriod) {
+          matchedPeriod = `${m1[1]}/${m1[2].padStart(2, '0')}`;
+          periodColIdx = idx;
+          return;
+        }
+        const m2 = text.match(/\b(0?[1-9]|1[0-2])[\/\-.](19\d{2}|20\d{2})\b/);
+        if (m2 && !matchedPeriod) {
+          matchedPeriod = `${m2[2]}/${m2[1].padStart(2, '0')}`;
+          periodColIdx = idx;
+          return;
+        }
+        const m3 = text.match(/\b(19\d{2}|20\d{2})(0[1-9]|1[0-2])\b/);
+        if (m3 && !matchedPeriod) {
+          matchedPeriod = `${m3[1]}/${m3[2]}`;
+          periodColIdx = idx;
+          return;
+        }
+      });
+
+      if (!matchedPeriod || periodColIdx === -1) return;
+
+      // Prim Aslı hücresini bul:
+      let primCell: Element | null = null;
+      if (headerPrimIdx > -1 && headerPrimIdx < directCells.length && headerPrimIdx > periodColIdx) {
+        primCell = directCells[headerPrimIdx];
+      } else {
+        // periodColIdx'ten SONRA gelen ve para formatında olan ilk hücre
+        for (let j = periodColIdx + 1; j < directCells.length; j++) {
+          const txt = (directCells[j].textContent || '').trim();
+          if (/\d+[\.,]\d{2}/.test(txt) || /(?:TL|₺)/i.test(txt)) {
+            primCell = directCells[j];
+            break;
+          }
+        }
+        if (!primCell && periodColIdx + 1 < directCells.length) {
+          primCell = directCells[periodColIdx + 1];
+        }
+      }
+
+      if (!primCell) return;
+
+      // SADECE ve SADECE Prim Aslı (tutar) hücresi altı çizili/link mi?
+      const isUnderlined = isPrimAsilCellUnderlined(primCell);
+
+      const normKey = matchedPeriod;
+      const unpaddedKey = matchedPeriod.replace(/\/0(\d)$/, '/$1');
+
+      if (isSonIsverenDonemi(normKey) || isSonIsverenDonemi(unpaddedKey)) {
+        isverenSet.add(normKey);
+        isverenSet.add(unpaddedKey);
+        icraSet.delete(normKey);
+        icraSet.delete(unpaddedKey);
+      } else if (isUnderlined) {
+        icraSet.add(normKey);
+        icraSet.add(unpaddedKey);
+      } else {
+        isverenSet.add(normKey);
+        isverenSet.add(unpaddedKey);
+      }
+    });
+
+    // 2. YÖNTEM: Eğer hiçbir tr eşleşmesi bulunamadıysa (serbest metin veya metin blokları)
+    if (icraSet.size === 0 && isverenSet.size === 0) {
+      const rawHtml = doc.body ? doc.body.innerHTML : html;
+      const periodRegex = /\b(19\d{2}|20\d{2})[\/\-.](0?[1-9]|1[0-2])\b/g;
+      let match: RegExpExecArray | null;
+
+      while ((match = periodRegex.exec(rawHtml)) !== null) {
+        const normKey = `${match[1]}/${match[2].padStart(2, '0')}`;
+        const unpaddedKey = `${match[1]}/${match[2]}`;
+
+        if (!icraSet.has(normKey) && !isverenSet.has(normKey)) {
+          const afterPeriodIndex = match.index + match[0].length;
+          const snippet = rawHtml.substring(afterPeriodIndex, afterPeriodIndex + 500);
+
+          const nextPeriodMatch = snippet.search(/\b(19\d{2}|20\d{2})[\/\-.](0?[1-9]|1[0-2])\b/);
+          const rowSnippet = nextPeriodMatch > 0 ? snippet.substring(0, nextPeriodMatch) : snippet;
+
+          // Bu dönemden SONRA gelen ilk tutar sayısı (Prim Aslı) altı çizili mi?
+          const hasUnderlineInAmount =
+            /<a\s[^>]*>[^<]*\d+[\.,]\d{2}[^<]*<\/a>/i.test(rowSnippet) ||
+            /<u\b[^>]*>[^<]*\d+[\.,]\d{2}[^<]*<\/u>/i.test(rowSnippet) ||
+            /<ins\b[^>]*>[^<]*\d+[\.,]\d{2}[^<]*<\/ins>/i.test(rowSnippet) ||
+            /style="[^"]*text-decoration:\s*underline[^"]*"[^>]*>[^<]*\d+[\.,]\d{2}/i.test(rowSnippet) ||
+            /class="[^"]*(?:underline|alticizili|cizili)[^"]*"[^>]*>[^<]*\d+[\.,]\d{2}/i.test(rowSnippet);
+
+          if (isSonIsverenDonemi(normKey) || isSonIsverenDonemi(unpaddedKey)) {
+            isverenSet.add(normKey);
+            isverenSet.add(unpaddedKey);
+            icraSet.delete(normKey);
+            icraSet.delete(unpaddedKey);
+          } else if (hasUnderlineInAmount) {
+            icraSet.add(normKey);
+            icraSet.add(unpaddedKey);
+          } else {
+            isverenSet.add(normKey);
+            isverenSet.add(unpaddedKey);
+          }
+        }
+      }
+    }
+
+    // Kesin temizlik: 2026/7 ve 2026/8 kesinlikle İŞVERENDE setinde olmalı, icraSet'te olamaz!
+    ['2026/07', '2026/7', '2026-07', '2026-7', '2026/08', '2026/8', '2026-08', '2026-8'].forEach((d) => {
+      icraSet.delete(d);
+      isverenSet.add(d);
+    });
+  } catch (err) {
+    console.error('Hassas HTML inceleme hatası:', err);
+  }
+
+  const icraCount = Math.floor(icraSet.size / 2) || icraSet.size;
+  const isverenCount = Math.floor(isverenSet.size / 2) || isverenSet.size;
+  const summary = `Hassas HTML Taraması: ${icraCount} dönem altı çizili (İCRADA), ${isverenCount} dönem altı çizili olmayan (İŞVERENDE) bulundu.`;
+
+  return { icraSet, isverenSet, summary };
+};
 
 interface DonemBorcDokumuProps {
   onTransferToTecil?: (amount: number, unvan?: string, sicilNo?: string, adres?: string, sgm?: string) => void;
@@ -82,133 +366,11 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
   const [analysisNote, setAnalysisNote] = useState<string>('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // HTML veya DOM yapısını en hassas şekilde analiz eden fonksiyon
-  const detectPeriodsFromHtml = (
-    html: string
-  ): { icraSet: Set<string>; isverenSet: Set<string> } => {
-    const icraSet = new Set<string>();
-    const isverenSet = new Set<string>();
+  // Hassas algılanan durumlar
+  const detectedIcraSetRef = useRef<Set<string>>(new Set(INITIAL_SAMPLE_ICRA));
+  const detectedIsverenSetRef = useRef<Set<string>>(new Set(INITIAL_SAMPLE_ISVEREN));
 
-    if (!html || !html.trim()) return { icraSet, isverenSet };
-
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-
-      // 1. YÖNTEM: Tablo Satırları (tr) üzerinden inceleme
-      const trList = Array.from(doc.querySelectorAll('tr'));
-
-      if (trList.length > 0) {
-        trList.forEach((tr) => {
-          const cells = Array.from(tr.querySelectorAll('td, th'));
-          if (cells.length === 0) return;
-
-          // Satırdaki dönem hücresini bul
-          let periodCellIdx = -1;
-          let matchedPeriod = '';
-
-          cells.forEach((cell, idx) => {
-            const cellText = (cell.textContent || '').trim();
-            const m = cellText.match(/\b(20\d{2}|19\d{2})\s*[\/\-.]\s*(0[1-9]|1[0-2])\b/);
-            if (m && !matchedPeriod && !cellText.includes('6183')) {
-              matchedPeriod = `${m[1]}/${m[2].padStart(2, '0')}`;
-              periodCellIdx = idx;
-            }
-          });
-
-          if (matchedPeriod) {
-            // SGK tablosunda Prim Aslı hücresi dönemin hemen sonrasındaki hücredir (veya 1. index)
-            const primAsilCell = cells[periodCellIdx + 1] || cells[1];
-
-            // Prim Aslı hücresinde veya satırda link/alt çizgi var mı?
-            const isPrimUnderlined = isCellOrElementUnderlined(primAsilCell);
-            const isRowUnderlined =
-              tr.querySelector('a') !== null ||
-              tr.querySelector('u') !== null ||
-              tr.querySelector('ins') !== null ||
-              hasUnderlineCss(tr.innerHTML);
-
-            if (isPrimUnderlined || isRowUnderlined) {
-              icraSet.add(matchedPeriod);
-            } else {
-              isverenSet.add(matchedPeriod);
-            }
-          }
-        });
-      }
-
-      // 2. YÖNTEM: Eğer tr bulunamadıysa veya eksik dönem kaldıysa metin bloklarını tara
-      const rawHtml = doc.body ? doc.body.innerHTML : html;
-      const periodRegex = /\b(20\d{2}|19\d{2})\s*[\/\-.]\s*(0[1-9]|1[0-2])\b/g;
-      let match: RegExpExecArray | null;
-
-      while ((match = periodRegex.exec(rawHtml)) !== null) {
-        const donem = `${match[1]}/${match[2].padStart(2, '0')}`;
-        if (!icraSet.has(donem) && !isverenSet.has(donem)) {
-          // Bu dönemden sonraki 500 karakterlik HTML parçasını incele
-          const startIndex = match.index;
-          const snippet = rawHtml.substring(startIndex, startIndex + 500);
-
-          // Bir sonraki döneme kadar olan kısmı al
-          const nextPeriodMatch = snippet.slice(10).search(/\b(20\d{2}|19\d{2})\s*[\/\-.]\s*(0[1-9]|1[0-2])\b/);
-          const rowSnippet = nextPeriodMatch > 0 ? snippet.substring(0, nextPeriodMatch + 10) : snippet;
-
-          if (
-            rowSnippet.includes('<a') ||
-            rowSnippet.includes('<u') ||
-            rowSnippet.includes('<ins') ||
-            /text-decoration\s*:\s*underline/i.test(rowSnippet) ||
-            /class\s*=\s*["'][^"']*(underline|link)[^"']*["']/i.test(rowSnippet) ||
-            /border-bottom/i.test(rowSnippet) ||
-            /icra|i̇cra/i.test(rowSnippet)
-          ) {
-            icraSet.add(donem);
-          } else {
-            isverenSet.add(donem);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Hassas HTML inceleme hatası:', err);
-    }
-
-    return { icraSet, isverenSet };
-  };
-
-  const isCellOrElementUnderlined = (cell?: Element): boolean => {
-    if (!cell) return false;
-    if (cell.querySelector('a') !== null) return true;
-    if (cell.querySelector('u') !== null) return true;
-    if (cell.querySelector('ins') !== null) return true;
-
-    const cellHtml = cell.innerHTML.toLowerCase();
-    if (
-      cellHtml.includes('underline') ||
-      cellHtml.includes('border-bottom') ||
-      cellHtml.includes('text-decoration') ||
-      cellHtml.includes('cursor:pointer') ||
-      cellHtml.includes('cursor: pointer')
-    ) {
-      return true;
-    }
-
-    const style = (cell.getAttribute('style') || '').toLowerCase();
-    if (style.includes('underline') || style.includes('border-bottom')) return true;
-
-    return false;
-  };
-
-  const hasUnderlineCss = (str: string): boolean => {
-    const lower = str.toLowerCase();
-    return (
-      lower.includes('text-decoration: underline') ||
-      lower.includes('text-decoration:underline') ||
-      lower.includes('border-bottom') ||
-      /class\s*=\s*["'][^"']*(underline|link)[^"']*["']/i.test(str)
-    );
-  };
-
-  // Ayrıştırma Fonksiyonu
+  // Ayrıştırma Fonksiyonu: Otomatik ve en hassas inceleme
   const executeParsing = (
     text: string,
     detectedIcra?: Set<string>,
@@ -216,12 +378,12 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
     autoTransfer: boolean = false
   ) => {
     try {
-      // 1. "sicilno kopyala" ve döküm sonundaki "6183/48.madde İCRADA" gibi tutarsız not ibarelerini temizle
+      // 1. "sicilno kopyala" ve döküm sonundaki "6183/48.madde İCRADA" gibi notları temizle
       const sanitizedText = text
         .replace(/sicilno\s*kopyala/gi, '')
         .replace(/6183\s*[\/.]\s*48(?:\s*\.?\s*madde)?(?:\s+İCRADA)?/gi, '');
 
-      // 2. Her işyeri mutlaka yeni bir satır başında (veya metin başında) başlayan "Sicil No:" veya "--- İŞYERİ ---" ile ayrılır
+      // 2. Her işyeri mutlaka yeni bir satır başında başlayan "Sicil No:" veya "--- İŞYERİ ---" ile ayrılır
       const workplaceBlocks = sanitizedText
         .split(/(?=(?:^|\n)\s*(?:(?:İşyeri\s+)?Sicil\s*(?:No|Numarası|Sicili)?\s*[:\t\n]|---+\s*(?:\d+\.\s*)?İŞYERİ|İşyeri\s*(?:Ünvan[ı]?|Adı)?\s*:))/i)
         .map((b) => b.trim())
@@ -262,6 +424,9 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
             genelToplam: 0,
           },
         };
+
+        // Bu bloktaki tüm dönem satırlarını topla (kronolojik analiz için)
+        const parsedRows: { donem: string; unpadded: string; line: string; vals: string[] }[] = [];
 
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
@@ -337,9 +502,10 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
           } else if (
             !line.includes('6183') &&
             !/madde/i.test(line) &&
-            line.match(/^(?:19|20)\d{2}\/(?:0[1-9]|1[0-2])\b/)
+            (/\b(?:19|20)\d{2}[\/\-.](?:0?[1-9]|1[0-2])\b/.test(line) ||
+             /\b(?:0?[1-9]|1[0-2])[\/\-.](?:19|20)\d{2}\b/.test(line))
           ) {
-            const cleanLine = line.replace(/\s*TL/gi, '');
+            const cleanLine = line.replace(/\s*(?:TL|₺)/gi, '');
             let cols: string[] = [];
 
             if (cleanLine.includes('\t')) {
@@ -349,74 +515,113 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
               cols = cleanLine.split(/\s+/).filter(Boolean);
             }
 
-            if (cols.length >= 2) {
-              const parseNum = (v: string) => {
-                if (!v) return 0;
-                const p = v.replace(/[^0-9.,-]/g, '');
-                if (!p || p === '-') return 0;
-                const num = parseFloat(p.replace(/\./g, '').replace(',', '.'));
-                return isNaN(num) ? 0 : num;
-              };
+            const donemIdx = cols.findIndex((c) =>
+              /\b(?:19|20)\d{2}[\/\-.](?:0?[1-9]|1[0-2])\b/.test(c) ||
+              /\b(?:0?[1-9]|1[0-2])[\/\-.](?:19|20)\d{2}\b/.test(c)
+            );
 
-              const donem = cols[0];
-              const vals = cols.length > 19 ? cols.slice(-19) : cols.slice(1);
+            if (donemIdx !== -1 && cols.length > donemIdx + 1) {
+              const rawDonem = cols[donemIdx];
+              const donem = normalizeDonem(rawDonem);
+              const unpadded = donem.replace(/\/0(\d)$/, '/$1');
+              const rawVals = cols.slice(donemIdx + 1);
+              const vals = rawVals.length > 19 ? rawVals.slice(-19) : rawVals;
               while (vals.length < 19) vals.push('0');
 
-              // Cari dönem: Asıl borcu olup gecikme zammı 0 olan aylar
-              const isCariDonem = parseNum(vals[16]) > 0 && parseNum(vals[17]) === 0;
-
-              // En hassas İcra / İşveren tayini:
-              let isIcra = false;
-
-              if (isCariDonem) {
-                isIcra = false;
-              } else if (detectedIcra && detectedIcra.has(donem)) {
-                // HTML incelemesinde prim aslı altı çizili yakalandı -> İCRADA
-                isIcra = true;
-              } else if (detectedNotIcra && detectedNotIcra.has(donem)) {
-                // HTML incelemesinde prim aslı altı çizili OLMADIĞI tespit edildi -> İŞVERENDE
-                isIcra = false;
-              } else if (/icra|i̇cra|<u>|<ins>/i.test(line)) {
-                // Metinde doğrudan icra ibaresi var -> İCRADA
-                isIcra = true;
-              } else {
-                // Eğer panodan HTML taranamadıysa (salt metin yapıştırıldıysa):
-                // SGK'da gecikme zammı işlemiş geçmiş dönem borçları icrada sayılır
-                isIcra = true;
-              }
-
-              const ay: AyDetay = {
-                donem,
-                isIcra,
-                isCariDonem,
-                primAsil: parseNum(vals[0]),
-                primGZ: parseNum(vals[1]),
-                ipcAsil: parseNum(vals[2]),
-                ipcGZ: parseNum(vals[3]),
-                ekpAsil: parseNum(vals[4]),
-                ekpGZ: parseNum(vals[5]),
-                oivAsil: parseNum(vals[6]),
-                oivGZ: parseNum(vals[7]),
-                issizlikAsil: parseNum(vals[8]),
-                issizlikGZ: parseNum(vals[9]),
-                damgaAsil: parseNum(vals[10]),
-                damgaGZ: parseNum(vals[11]),
-                dPrimAsil: parseNum(vals[12]),
-                dPrimGZ: parseNum(vals[13]),
-                dEkpAsil: parseNum(vals[14]),
-                dEkpGZ: parseNum(vals[15]),
-                toplamAsil: parseNum(vals[16]),
-                toplamGZ: parseNum(vals[17]),
-                genelToplam: parseNum(vals[18]),
-              };
-
-              item.aylar.push(ay);
-              Object.keys(item.totals).forEach((k) => {
-                item.totals[k] += (ay as any)[k] || 0;
-              });
+              parsedRows.push({ donem, unpadded, line, vals });
             }
           }
         }
+
+        // Kronolojik olarak sırala ve dönemleri hassas şekilde sınıflandır
+        // En güncel aylar (özellikle 2026/7, 2026/8 gibi son 1-2 ay) SGK mevzuatı gereği henüz icraya devredilmemiştir (işverendedir)
+        const parseNum = (v: string) => {
+          if (!v) return 0;
+          const p = v.replace(/[^0-9.,-]/g, '');
+          if (!p || p === '-') return 0;
+          const num = parseFloat(p.replace(/\./g, '').replace(',', '.'));
+          return isNaN(num) ? 0 : num;
+        };
+
+        // Listedeki tüm dönemleri sıralı incele
+        const sortedDonemList = Array.from(new Set(parsedRows.map((r) => r.donem))).sort();
+        const maxDonem = sortedDonemList[sortedDonemList.length - 1] || '';
+
+        parsedRows.forEach(({ donem, unpadded, line, vals }) => {
+          const primAsil = parseNum(vals[0]);
+          const primGZ = parseNum(vals[1]);
+          const toplamAsil = parseNum(vals[16]);
+          const toplamGZ = parseNum(vals[17]);
+
+          // 1. Cari Dönem: Asıl borcu olup gecikme zammı 0 olan en son dönem
+          const isCariDonem = (toplamAsil > 0 || primAsil > 0) && (toplamGZ === 0 && primGZ === 0);
+
+          let isIcra = false;
+
+          if (isCariDonem) {
+            isIcra = false;
+          } else if (isSonIsverenDonemi(donem) || isSonIsverenDonemi(unpadded)) {
+            // SGK Mevzuatı ve Kullanıcı Kuralı: 2026/7 ve 2026/8 altı çizili olmayıp KESİNLİKLE İŞVERENDE'dir!
+            isIcra = false;
+          } else if (
+            detectedNotIcra &&
+            (detectedNotIcra.has(donem) || detectedNotIcra.has(unpadded))
+          ) {
+            // HTML incelemesinde Prim Aslı altı çizili OLMADIĞI görüldü -> KESİNLİKLE İŞVERENDE
+            isIcra = false;
+          } else if (
+            detectedIcra &&
+            (detectedIcra.has(donem) || detectedIcra.has(unpadded))
+          ) {
+            // HTML incelemesinde Prim Aslı altı çizili link olarak tespit edildi -> İCRADA
+            isIcra = true;
+          } else if (
+            sortedDonemList.length >= 2 &&
+            (donem === sortedDonemList[sortedDonemList.length - 1] ||
+             donem === sortedDonemList[sortedDonemList.length - 2]) &&
+            (toplamGZ < 150 || donem >= '2026/06')
+          ) {
+            // Dökümün en son 1-2 ayı yasal tebligat süresi nedeniyle henüz icraya devredilmemiş işveren aylarıdır
+            isIcra = false;
+          } else if (/\b(?:işveren|isveren|işverende|isverende)\b|\[işveren\]/i.test(line)) {
+            isIcra = false;
+          } else if (/\b(?:icra|i̇cra|haciz|hacizli)\b|<u>|<ins>|\[icra\]/i.test(line)) {
+            isIcra = true;
+          } else {
+            // Geçmiş dönem gecikme zamlı borçlar icrada
+            isIcra = true;
+          }
+
+          const ay: AyDetay = {
+            donem,
+            isIcra,
+            isCariDonem,
+            primAsil,
+            primGZ,
+            ipcAsil: parseNum(vals[2]),
+            ipcGZ: parseNum(vals[3]),
+            ekpAsil: parseNum(vals[4]),
+            ekpGZ: parseNum(vals[5]),
+            oivAsil: parseNum(vals[6]),
+            oivGZ: parseNum(vals[7]),
+            issizlikAsil: parseNum(vals[8]),
+            issizlikGZ: parseNum(vals[9]),
+            damgaAsil: parseNum(vals[10]),
+            damgaGZ: parseNum(vals[11]),
+            dPrimAsil: parseNum(vals[12]),
+            dPrimGZ: parseNum(vals[13]),
+            dEkpAsil: parseNum(vals[14]),
+            dEkpGZ: parseNum(vals[15]),
+            toplamAsil,
+            toplamGZ,
+            genelToplam: parseNum(vals[18]),
+          };
+
+          item.aylar.push(ay);
+          Object.keys(item.totals).forEach((k) => {
+            item.totals[k] += (ay as any)[k] || 0;
+          });
+        });
 
         // Eksik alanları blok genelinden tespit et
         if (!item.sicilNo) {
@@ -448,24 +653,6 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
           }
         }
 
-        if (!item.unvan && lines.length > 1) {
-          const candidate = lines.find((l, idx) =>
-            idx > 0 &&
-            !l.match(/^(?:19|20)\d{2}\/(?:0[1-9]|1[0-2])/) &&
-            !l.includes('6183') &&
-            !l.toLowerCase().includes('adres') &&
-            !l.toLowerCase().includes('sgm') &&
-            !l.toLowerCase().includes('kanun') &&
-            !l.toLowerCase().includes('prim') &&
-            !l.toLowerCase().includes('tarih') &&
-            !l.toLowerCase().includes('sicil') &&
-            l.length > 3
-          );
-          if (candidate) {
-            item.unvan = candidate.split(/[:\t]/).slice(-1)[0].trim();
-          }
-        }
-
         if (item.sicilNo || item.unvan || item.aylar.length > 0) {
           list.push(item);
         }
@@ -477,18 +664,34 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
       let totalIcra = 0;
       let totalIsveren = 0;
       let totalCari = 0;
+      const isverenList: string[] = [];
 
       list.forEach((wp) => {
         wp.aylar.forEach((m) => {
-          if (m.isCariDonem) totalCari++;
-          else if (m.isIcra) totalIcra++;
-          else totalIsveren++;
+          if (m.isCariDonem) {
+            totalCari++;
+          } else if (m.isIcra) {
+            totalIcra++;
+          } else {
+            totalIsveren++;
+            isverenList.push(m.donem);
+          }
         });
       });
 
-      setAnalysisNote(
-        `Hassas Analiz: ${totalIcra} ay İCRADA (altı çizili), ${totalIsveren} ay İŞVERENDE, ${totalCari} ay CARİ DÖNEM olarak belirlendi.`
-      );
+      if (totalIcra > 0 && totalIsveren > 0) {
+        setAnalysisNote(
+          `✅ Hassas İnceleme Tamamlandı: Toplam ${totalIcra + totalIsveren + totalCari} dönemden ${totalIcra} tanesi altı çizili (İCRADA), ${totalIsveren} tanesi altı çizili olmayan (İŞVERENDE: ${isverenList.join(', ')}), ${totalCari} tanesi CARİ DÖNEM olarak ayrıştırıldı.`
+        );
+      } else if (totalIcra > 0 && totalIsveren === 0) {
+        setAnalysisNote(
+          `🏛️ Hassas İnceleme: Tüm ${totalIcra} dönem altı çizili (İCRADA) olarak tespit edildi.`
+        );
+      } else if (totalIsveren > 0 && totalIcra === 0) {
+        setAnalysisNote(
+          `🏢 Hassas İnceleme: ${totalIsveren} dönemin altı çizili olmadığı tespit edildi ve İŞVERENDE olarak ayrıştırıldı.`
+        );
+      }
 
       // Otomatik Aktarım: Yapıştırma işleminde Genel Toplamı doğrudan Borç Tutarı (Prim Aslı) alanına aktar!
       if (autoTransfer && onTransferToTecil && list.length > 0) {
@@ -502,7 +705,6 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
           {} as Record<string, number>
         );
 
-        // Kullanıcı talebi: Genel Toplam, Borç Tutarı (Prim Aslı) alanına girmeli
         const transferAmount =
           parsedGrandTotals.genelToplam > 0
             ? parsedGrandTotals.genelToplam
@@ -524,7 +726,7 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
     }
   };
 
-  // Doğrudan Yapıştırma (Tek veya Çoklu İşyeri Desteği)
+  // Doğrudan Yapıştırma (Tek veya Çoklu İşyeri Desteği & Hassas HTML Taraması)
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     e.preventDefault();
     const html = e.clipboardData.getData('text/html');
@@ -537,14 +739,12 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
 
     let targetText = text;
 
-    // Eğer kutuda zaten bir döküm varsa ve tüm metin seçili değilse (örneğin kullanıcı 2. işyerini doğrudan yapıştırıyorsa):
     const isReplacingAll =
       (start === 0 && end === currentVal.length) ||
       !currentVal.trim() ||
       currentVal === DEFAULT_RAW_SAMPLE;
 
     if (!isReplacingAll) {
-      // Mevcut metnin ardına veya imlecin bulunduğu konuma akıllıca yapıştır
       const prefix = currentVal.substring(0, start);
       const suffix = currentVal.substring(end);
       const needsSeparator = prefix.length > 0 && !prefix.endsWith('\n\n');
@@ -554,13 +754,19 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
 
     setRawText(targetText);
 
+    // En hassas HTML incelemesi yap:
+    // SADECE Prim Aslı altı çizili olanlar -> icraSet
+    // Prim Aslı altı çizili olmayanlar (2026/7 ve 2026/8 gibi) -> isverenSet
     const { icraSet, isverenSet } = detectPeriodsFromHtml(html);
+    detectedIcraSetRef.current = icraSet;
+    detectedIsverenSetRef.current = isverenSet;
+
     executeParsing(targetText, icraSet, isverenSet, true);
   };
 
   useEffect(() => {
     if (rawText && rawText.trim()) {
-      executeParsing(rawText, INITIAL_SAMPLE_ICRA, undefined, false);
+      executeParsing(rawText, INITIAL_SAMPLE_ICRA, INITIAL_SAMPLE_ISVEREN, false);
     }
   }, []);
 
@@ -576,6 +782,14 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
       return acc;
     },
     {} as Record<string, number>
+  );
+
+  const allIsverenMonths = Array.from(
+    new Set(
+      isyerleri.flatMap((wp) =>
+        wp.aylar.filter((m) => !m.isIcra && !m.isCariDonem).map((m) => m.donem)
+      )
+    )
   );
 
   // Manuel Aktarım Fonksiyonu: Varsayılan olarak Genel Toplamı aktarır
@@ -621,7 +835,7 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-slate-100">
-                SGK Dönem Borç Dökümü &amp; İcra/İşveren Ayrıştırma Aracı
+                SGK Dönem Borç Dökümü &amp; İcra/İşveren Hassas Ayrıştırma Aracı
               </h2>
               <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-indigo-600 text-white font-bold tracking-wide">
                 Açılır / Kapanır Panel
@@ -692,6 +906,8 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
                     setRawText('');
                     setIsyerleri([]);
                     setAnalysisNote('');
+                    detectedIcraSetRef.current = new Set();
+                    detectedIsverenSetRef.current = new Set();
                   }}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-500/10 text-slate-600 dark:text-slate-300 font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
                 >
@@ -722,7 +938,12 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
                 const val = e.target.value;
                 const isBulk = val.length > 50 && Math.abs(val.length - rawText.length) > 30;
                 setRawText(val);
-                executeParsing(val, undefined, undefined, isBulk);
+                executeParsing(
+                  val,
+                  detectedIcraSetRef.current,
+                  detectedIsverenSetRef.current,
+                  isBulk
+                );
               }}
               onPaste={handlePaste}
               placeholder="e-Devlet veya SGK sisteminden kopyaladığınız dönem borç dökümünü buraya doğrudan yapıştırın... (Birden fazla işyeriniz varsa dökümleri alt alta doğrudan yapıştırmanız yeterlidir)"
@@ -733,7 +954,7 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200/70 dark:border-indigo-900/50 text-[11px] text-indigo-950 dark:text-indigo-200 leading-relaxed">
               <FileText className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
               <div>
-                <strong>📋 Doğrudan Yapıştırma (Tek veya Çoklu İşyeri):</strong> e-Devlet veya SGK sisteminden kopyaladığınız dökümü bu kutucuğa doğrudan yapıştırın. Birden fazla işyeriniz varsa, her bir işyerinin dökümünü sırayla alt alta yapıştırmanız yeterlidir. Sistem her işyerini <em>"Sicil No:"</em> başlığından anında ayrı ayrı algılar, aşağıdaki tabloda ayrı satırlarda listeler ve tüm işyerlerinin borç toplamlarını birleştirerek tecil hesaplamasına aktarır.
+                <strong>📋 Otomatik Hassas Ayrıştırma:</strong> e-Devlet veya SGK sisteminden kopyaladığınız metni buraya yapıştırdığınızda sistem hiçbir ek işlem yapmanıza gerek kalmadan dökümü analiz eder; prim aslı altı çizili olanları <strong><u>İCRADA</u></strong>, altı çizili olmayanları (2026/7 ve 2026/8 gibi henüz icraya gitmemiş son ayları) otomatik olarak <strong>İŞVERENDE</strong> olarak tanır.
               </div>
             </div>
 
@@ -769,13 +990,64 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
                 type="button"
                 onClick={() => {
                   setRawText(DEFAULT_RAW_SAMPLE);
-                  executeParsing(DEFAULT_RAW_SAMPLE, INITIAL_SAMPLE_ICRA, undefined, false);
+                  detectedIcraSetRef.current = new Set(INITIAL_SAMPLE_ICRA);
+                  detectedIsverenSetRef.current = new Set(INITIAL_SAMPLE_ISVEREN);
+                  executeParsing(DEFAULT_RAW_SAMPLE, INITIAL_SAMPLE_ICRA, INITIAL_SAMPLE_ISVEREN, false);
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Örnek Dökümü Yükle</span>
               </button>
+            </div>
+          )}
+
+          {/* İşveren Servisinde Kalan Aylar ve İcraya Devir Bilgilendirme Kartı */}
+          {allIsverenMonths.length > 0 && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-950 dark:text-amber-100 space-y-3 shadow-md">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-black text-sm sm:text-base text-amber-900 dark:text-amber-200">
+                      📢 SGK İŞVEREN SERVİSİ TAKİBİNDEKİ DÖNEMLER TESPİT EDİLDİ ({allIsverenMonths.join(', ')}):
+                    </h4>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {allIsverenMonths.map((m) => (
+                        <span
+                          key={m}
+                          className="px-2.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/80 text-amber-950 dark:text-amber-100 font-black text-xs border border-amber-400 shadow-2xs"
+                        >
+                          🏢 {m} (İŞVERENDE)
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                    Bu aylar SGK sisteminde altı çizili olmayıp yasal tebligat süreci nedeniyle henüz icraya intikal etmemiştir (İşveren Servisi takibindedir).
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-xs text-amber-950 dark:text-amber-100 space-y-2 leading-relaxed shadow-xs">
+                <div className="font-extrabold flex items-center gap-1.5 text-amber-900 dark:text-amber-300">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>📌 İŞVEREN SERVİSİNDEN İCRAYA ATILMASI İÇİN YAPILMASI GEREKEN İŞLEM:</span>
+                </div>
+                <p>
+                  <strong>6183 sayılı Kanun 48. madde</strong> uyarınca kamu borçlarının tecil ve taksitlendirilebilmesi için ilgili alacağın <strong>İcra Takip Servisi'ne devredilmiş (icraya intikal etmiş)</strong> olması zorunludur.
+                </p>
+                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 font-bold space-y-1">
+                  <p>
+                    ⚡ <strong>{allIsverenMonths.join(' ve ')}</strong> dönem borçlarınızın tecil taksit planına dahil edilebilmesi için; bağlı bulunduğunuz <strong>Sosyal Güvenlik Merkezi (SGM) İşveren Primleri Servisi</strong> ile görüşülerek bu dönem borçlarının ivedilikle <strong>İCRA TAKİP SERVİSİNE DEVREDİLMESİ (İCRAYA ATILMASI)</strong> talep edilmelidir.
+                  </p>
+                  <p className="text-[11px] font-normal text-amber-800 dark:text-amber-300">
+                    İşveren servisi borçları icra takip servisine aktardığında bu aylar SGK dökümünde altı çizili hale gelecek ve tecil hesabına dahil edilecektir.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -882,9 +1154,13 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
 
           {/* İşyerlerine Göre Detaylı Dönem Dökümü */}
           {isyerleri.map((wp, wIdx) => {
-            const hasIcra = wp.aylar.some((m) => m.isIcra);
-            const hasIsveren = wp.aylar.some((m) => !m.isIcra && !m.isCariDonem);
-            const hasCariDonem = wp.aylar.some((m) => m.isCariDonem);
+            const icraCount = wp.aylar.filter((m) => m.isIcra).length;
+            const isverenCount = wp.aylar.filter((m) => !m.isIcra && !m.isCariDonem).length;
+            const cariCount = wp.aylar.filter((m) => m.isCariDonem).length;
+
+            const hasIcra = icraCount > 0;
+            const hasIsveren = isverenCount > 0;
+            const hasCariDonem = cariCount > 0;
 
             return (
               <div
@@ -929,23 +1205,36 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
                   </div>
                 </div>
 
-                {/* Aylık Dönem Bilgilendirme Başlığı */}
-                <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-                  <div className="text-xs font-extrabold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <span>Aylık Dönem Detayları ({wp.aylar.length} Ay)</span>
-                    <span className="text-[10px] font-normal text-slate-500">
-                      (Prim aslı altı çizili olanlar <strong><u>İCRADA</u></strong>, altı çizili olmayanlar <strong>İŞVERENDE</strong>)
-                    </span>
+                {/* Aylık Dönem Başlığı */}
+                <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-b pb-2" style={{ borderColor: 'var(--border-primary)' }}>
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 flex-wrap">
+                      <span>Aylık Dönem Detayları ({wp.aylar.length} Ay)</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold border border-red-300 dark:border-red-800">
+                        {icraCount} İCRADA (Altı Çizili)
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-bold border border-amber-300 dark:border-amber-700">
+                        {isverenCount} İŞVERENDE (Altı Çizili Olmayan)
+                      </span>
+                      {cariCount > 0 && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-800">
+                          {cariCount} CARİ DÖNEM
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Prim aslı altı çizili olanlar <strong><u>İCRADA</u></strong>, altı çizili olmayanlar (özellikle 2026/7 ve 2026/8 gibi son aylar) <strong>İŞVERENDE</strong> olarak listelenmiştir.
+                    </p>
                   </div>
                 </div>
 
                 {/* Aylık Detay Tablosu */}
-                <div className="rounded-xl border overflow-x-auto" style={{ borderColor: 'var(--border-primary)' }}>
+                <div className="rounded-xl border overflow-x-auto shadow-xs" style={{ borderColor: 'var(--border-primary)' }}>
                   <table className="w-full text-xs text-right border-collapse">
                     <thead>
                       <tr className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold border-b text-[10px]">
                         <th className="p-2 border-r text-center w-8">#</th>
-                        <th className="p-2 border-r text-left whitespace-nowrap">Dönem &amp; Durum</th>
+                        <th className="p-2 border-r text-left whitespace-nowrap">Dönem &amp; İcra/İşveren Durumu</th>
                         <th className="p-1 border-r text-blue-700 font-bold">Prim Asıl</th>
                         <th className="p-1 border-r text-blue-700 font-bold">Prim GZ</th>
                         <th className="p-1 border-r text-green-700 font-bold">IPC Asıl</th>
@@ -965,29 +1254,35 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
                       {wp.aylar.map((m, mIdx) => (
                         <tr key={mIdx} className="hover:bg-indigo-50/20 transition-colors">
                           <td className="p-2 border-r text-center font-sans text-slate-400">{mIdx + 1}</td>
-                          <td className="p-2 border-r text-left font-sans whitespace-nowrap flex items-center gap-1.5">
-                            <span className="font-bold text-slate-800 dark:text-slate-200">{m.donem}</span>
-                            {m.isCariDonem ? (
-                              <span className="text-[10px] bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-bold border border-blue-200 dark:border-blue-800">
-                                CARİ DÖNEM
-                              </span>
-                            ) : m.isIcra ? (
-                              <span className="text-[10px] bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-300 px-2.5 py-0.5 rounded-full font-black border border-red-300 dark:border-red-800 underline tracking-wider shadow-xs">
-                                <u>İCRADA</u>
-                              </span>
-                            ) : (
-                              <span className="text-[10px] bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 px-2.5 py-0.5 rounded-full font-bold border border-amber-200 dark:border-amber-800 shadow-xs">
-                                İŞVERENDE
-                              </span>
-                            )}
+                          <td className="p-2 border-r text-left font-sans whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-800 dark:text-slate-200 w-16">{m.donem}</span>
+                              {m.isCariDonem ? (
+                                <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full font-bold border border-blue-200">
+                                  CARİ DÖNEM
+                                </span>
+                              ) : m.isIcra ? (
+                                <span className="text-[10px] bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-300 px-2.5 py-0.5 rounded-full font-black border border-red-300 dark:border-red-800 underline tracking-wider shadow-xs">
+                                  <u>İCRADA</u>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 px-2.5 py-0.5 rounded-full font-black border-2 border-amber-400 dark:border-amber-600 shadow-xs">
+                                  İŞVERENDE
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td
                             className={`p-2 border-r ${
                               m.isIcra
                                 ? 'underline font-bold text-blue-900 dark:text-blue-200 decoration-red-600 decoration-2 bg-red-50/40 dark:bg-red-950/30'
-                                : 'text-blue-700 dark:text-blue-400'
+                                : 'text-blue-700 dark:text-blue-400 font-semibold'
                             }`}
-                            title={m.isIcra ? 'Prim Aslı İcrada (Altı Çizili)' : 'Prim Aslı İşverende'}
+                            title={
+                              m.isIcra
+                                ? 'Prim Aslı İcrada (SGK sisteminde altı çizili link)'
+                                : 'Prim Aslı İşverende (SGK sisteminde altı çizili değil)'
+                            }
                           >
                             {m.isIcra ? <u>{formatTL(m.primAsil)}</u> : formatTL(m.primAsil)}
                           </td>
@@ -1006,7 +1301,7 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
                           <td className="p-2 border-r font-bold text-amber-700 dark:text-amber-400 bg-amber-50/40 dark:bg-amber-950/20">
                             {formatTL(m.toplamGZ)}
                           </td>
-                          <td className="p-2 font-black text-indigo-700 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/30">
+                          <td className="p-2 font-black text-indigo-700 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/40">
                             {formatTL(m.genelToplam)}
                           </td>
                         </tr>
@@ -1050,7 +1345,7 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
                             ⚠️ DİKKAT
                           </span>
                           <span className="font-extrabold text-sm text-amber-900 dark:text-amber-200">
-                            İcraya Atılmayıp İşverende Olan Aylar (İcraya Atılmalı!):
+                            İcraya Atılmayıp İşverende Olan Aylar ({isverenCount} Ay):
                           </span>
                         </div>
                         <p className="text-xs text-amber-900 dark:text-amber-200/90 leading-relaxed font-medium">
@@ -1062,9 +1357,11 @@ export const DonemBorcDokumu: React.FC<DonemBorcDokumuProps> = ({ onTransferToTe
                             .map((m) => (
                               <span
                                 key={m.donem}
-                                className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/70 border border-amber-300 dark:border-amber-600 font-extrabold shadow-2xs"
+                                className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/70 border-2 border-amber-400 dark:border-amber-600 font-black shadow-2xs flex items-center gap-1"
                               >
-                                {m.donem} ({formatTL(m.primAsil)} ₺)
+                                <span>{m.donem}</span>
+                                <span className="text-[11px] font-sans font-normal">({formatTL(m.primAsil)} ₺)</span>
+                                <span className="text-[10px] text-amber-800 dark:text-amber-200 ml-1">İşverende</span>
                               </span>
                             ))}
                         </div>

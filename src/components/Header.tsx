@@ -337,8 +337,12 @@ export const Header: React.FC<HeaderProps> = ({
       >
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-lg shrink-0">
-              <span className="text-2xl">⚖️</span>
+            <div className="h-12 px-3 py-1.5 rounded-2xl bg-white flex items-center justify-center shadow-md border border-slate-200 dark:border-slate-700/60 shrink-0">
+              <img
+                src="./sgk-logo.svg"
+                alt="SGK Logosu"
+                className="h-8 w-auto max-w-[110px] object-contain"
+              />
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-50 flex items-center gap-2">

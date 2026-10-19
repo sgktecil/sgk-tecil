@@ -47,6 +47,8 @@ interface TaksitFormuModalProps {
   bilancoData: { dv: number; stok: number; ky: number };
   isletmeData: { kasa: number; banka: number; alacak: number; borclar: number };
   initialBorclu?: Partial<BorcluBilgileri>;
+  pesinatModeProp?: 'taksiteGore' | 'yuzdeOn' | 'manuel';
+  onPesinatModeChange?: (mode: 'taksiteGore' | 'yuzdeOn' | 'manuel') => void;
   faizOrani?: number;
 }
 
@@ -158,6 +160,8 @@ export const TaksitFormuModal: React.FC<TaksitFormuModalProps> = ({
   bilancoData,
   isletmeData,
   initialBorclu,
+  pesinatModeProp,
+  onPesinatModeChange,
   faizOrani = 39,
 }) => {
   // Form Seçimi: 'ek1' | 'ek1b' (Ek-1/a muhasebeci doldurduğu için kaldırıldı)
@@ -187,7 +191,13 @@ export const TaksitFormuModal: React.FC<TaksitFormuModalProps> = ({
   const [customTaksit, setCustomTaksit] = useState(() => taksitSayisi.toString());
   const [customPesinat, setCustomPesinat] = useState(() => formatTL(pesinatTutari));
   // Peşinat Giriş Modu: 'taksiteGore' (Taksit sayısına göre otomatik 1 taksit) | 'yuzdeOn' (%10) | 'manuel' (Kullanıcının serbest girdiği tutar)
-  const [pesinatMode, setPesinatMode] = useState<'taksiteGore' | 'yuzdeOn' | 'manuel'>('taksiteGore');
+  const [pesinatMode, setPesinatMode] = useState<'taksiteGore' | 'yuzdeOn' | 'manuel'>(pesinatModeProp || 'taksiteGore');
+
+  useEffect(() => {
+    if (pesinatModeProp && pesinatModeProp !== pesinatMode) {
+      setPesinatMode(pesinatModeProp);
+    }
+  }, [pesinatModeProp]);
 
   // Canlı Hesaplanan Tecil İşlem Sonucu
   const liveCalculation = useMemo(() => {
@@ -289,6 +299,7 @@ export const TaksitFormuModal: React.FC<TaksitFormuModalProps> = ({
   const handleCustomPesinatChange = (val: string) => {
     setCustomPesinat(val);
     setPesinatMode('manuel');
+    onPesinatModeChange?.('manuel');
     const num = parseTL(val);
     if (num >= 0 && !isNaN(num)) {
       onPesinatChange?.(num);
@@ -312,6 +323,7 @@ export const TaksitFormuModal: React.FC<TaksitFormuModalProps> = ({
       const autoP = Math.round((numB / numT) * 100) / 100;
       setCustomPesinat(formatTL(autoP));
       setPesinatMode('taksiteGore');
+      onPesinatModeChange?.('taksiteGore');
       onPesinatChange?.(autoP);
     }
   };
@@ -323,6 +335,7 @@ export const TaksitFormuModal: React.FC<TaksitFormuModalProps> = ({
       const autoP = Math.round(numB * 0.10 * 100) / 100;
       setCustomPesinat(formatTL(autoP));
       setPesinatMode('yuzdeOn');
+      onPesinatModeChange?.('yuzdeOn');
       onPesinatChange?.(autoP);
     }
   };
