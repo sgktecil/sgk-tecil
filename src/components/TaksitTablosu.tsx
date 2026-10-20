@@ -254,46 +254,54 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
         </p>
       </div>
 
-      {/* Resmî Geri Ödeme Tablosu - Kullanıcı Örneğindeki Görünüm */}
-      <div className="overflow-hidden rounded-2xl border bg-slate-900 text-slate-100 shadow-2xl border-slate-700/80">
+      {/* Resmî Geri Ödeme Tablosu - Proje Temasıyla Tam Uyumlu */}
+      <div className="overflow-hidden rounded-2xl border shadow-sm" style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--bg-secondary)' }}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-slate-700/80 bg-slate-800/80 font-bold uppercase tracking-wider text-[11px] sm:text-xs text-slate-300">
+              <tr
+                className="border-b font-extrabold uppercase tracking-wider text-[11px] sm:text-xs"
+                style={{
+                  backgroundColor: 'var(--bg-elevated)',
+                  borderColor: 'var(--border-primary)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
                 <th className="p-4 text-left font-black w-28">TAKSİT</th>
                 <th className="p-4 text-right font-black">ANA PARA</th>
-                <th className="p-4 text-right font-black text-amber-400">FAİZ</th>
-                <th className="p-4 text-right font-black text-slate-100">TAKSİT TOPLAMI</th>
+                <th className="p-4 text-right font-black text-amber-600 dark:text-amber-400">FAİZ</th>
+                <th className="p-4 text-right font-black text-slate-900 dark:text-slate-100">TAKSİT TOPLAMI</th>
                 <th className="p-4 text-right font-black">ÖDEME TARİHİ</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800 font-mono">
+            <tbody className="divide-y font-mono" style={{ borderColor: 'var(--border-primary)' }}>
               {taksitler.map((t, idx) => {
                 const isPesinatRow = t.isPesinat || t.no === 'Peşinat';
 
                 return (
                   <tr
                     key={idx}
-                    className="hover:bg-slate-800/60 transition-colors"
+                    className="hover:bg-teal-500/5 transition-colors"
+                    style={{ color: 'var(--text-primary)' }}
                   >
                     {/* TAKSİT */}
                     <td className="p-4 text-left font-bold font-sans">
                       {isPesinatRow ? (
-                        <span className="font-extrabold text-white text-xs sm:text-sm">
+                        <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
                           Peşinat
                         </span>
                       ) : (
-                        <span className="text-slate-300 font-semibold">{t.no}</span>
+                        <span className="text-slate-500 font-semibold">{t.no}</span>
                       )}
                     </td>
 
                     {/* ANA PARA */}
-                    <td className="p-4 text-right font-semibold text-slate-100">
+                    <td className="p-4 text-right font-semibold text-slate-800 dark:text-slate-100">
                       {formatTL(t.anaPara)} ₺
                     </td>
 
                     {/* FAİZ */}
-                    <td className="p-4 text-right font-bold text-amber-400">
+                    <td className="p-4 text-right font-bold text-amber-600 dark:text-amber-400">
                       {isPesinatRow || t.faiz === 0 ? (
                         <span className="text-slate-400 font-sans">—</span>
                       ) : (
@@ -302,12 +310,12 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
                     </td>
 
                     {/* TAKSİT TOPLAMI */}
-                    <td className="p-4 text-right font-bold text-slate-100">
+                    <td className="p-4 text-right font-black text-teal-700 dark:text-teal-400">
                       {formatTL(t.toplamTaksit)} ₺
                     </td>
 
                     {/* ÖDEME TARİHİ */}
-                    <td className="p-4 text-right font-sans font-medium text-slate-300">
+                    <td className="p-4 text-right font-sans font-medium text-slate-600 dark:text-slate-400">
                       {t.vadeTarihi}
                     </td>
                   </tr>
@@ -315,17 +323,23 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-slate-700 bg-slate-800/90 font-mono font-bold text-xs sm:text-sm">
-                <td className="p-4 text-left font-black font-sans text-white uppercase tracking-wider">
+              <tr
+                className="border-t-2 font-mono font-bold text-xs sm:text-sm"
+                style={{
+                  backgroundColor: 'var(--bg-elevated)',
+                  borderColor: 'var(--border-primary)',
+                }}
+              >
+                <td className="p-4 text-left font-black font-sans text-slate-900 dark:text-slate-100 uppercase tracking-wider">
                   TOPLAM
                 </td>
-                <td className="p-4 text-right font-black text-white">
+                <td className="p-4 text-right font-black text-slate-900 dark:text-slate-100">
                   {formatTL(toplamAnaParaHesaplanan)} ₺
                 </td>
-                <td className="p-4 text-right font-black text-amber-400">
+                <td className="p-4 text-right font-black text-amber-600 dark:text-amber-400">
                   {formatTL(toplamFaiz)} ₺
                 </td>
-                <td className="p-4 text-right font-black text-emerald-400 text-sm sm:text-base">
+                <td className="p-4 text-right font-black text-teal-700 dark:text-teal-400 text-sm sm:text-base">
                   {formatTL(toplamOdeme)} ₺
                 </td>
                 <td className="p-4 text-right font-sans text-slate-400 font-bold">
