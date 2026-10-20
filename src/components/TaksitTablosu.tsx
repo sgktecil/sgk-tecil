@@ -60,7 +60,8 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
     let text = "TAKSİT\tANA PARA\tFAİZ\tTAKSİT TOPLAMI\tÖDEME TARİHİ\n";
     taksitler.forEach((t) => {
       const faizText = t.isPesinat || t.faiz === 0 ? "—" : `${formatTL(t.faiz)} ₺`;
-      text += `${t.no}\t${formatTL(t.anaPara)} ₺\t${faizText}\t${formatTL(t.toplamTaksit)} ₺\t${t.vadeTarihi}\n`;
+      const noText = t.isPesinat ? "Peşinat" : t.no;
+      text += `${noText}\t${formatTL(t.anaPara)} ₺\t${faizText}\t${formatTL(t.toplamTaksit)} ₺\t${t.vadeTarihi}\n`;
     });
     text += `TOPLAM\t${formatTL(toplamBorc)} ₺\t${formatTL(toplamFaiz)} ₺\t${formatTL(toplamOdeme)} ₺\t—\n`;
     navigator.clipboard.writeText(text);
@@ -71,10 +72,11 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
   const exportCSV = () => {
     let csv = "TAKSİT;ANA PARA;FAİZ;TAKSİT TOPLAMI;ÖDEME TARİHİ\n";
     taksitler.forEach((t) => {
-      const faizText = t.isPesinat || t.faiz === 0 ? "—" : `${formatTL(t.faiz)} ₺`;
-      csv += `${t.no};${formatTL(t.anaPara)} ₺;${faizText};${formatTL(t.toplamTaksit)} ₺;${t.vadeTarihi}\n`;
+      const faizText = t.isPesinat || t.faiz === 0 ? "0,00" : formatTL(t.faiz);
+      const noText = t.isPesinat ? "Peşinat" : t.no;
+      csv += `${noText};${formatTL(t.anaPara)};${faizText};${formatTL(t.toplamTaksit)};${t.vadeTarihi}\n`;
     });
-    csv += `TOPLAM;${formatTL(toplamBorc)} ₺;${formatTL(toplamFaiz)} ₺;${formatTL(toplamOdeme)} ₺;—\n`;
+    csv += `TOPLAM;${formatTL(toplamBorc)};${formatTL(toplamFaiz)};${formatTL(toplamOdeme)};—\n`;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -97,12 +99,14 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
       {/* Üst Başlık ve Eylemler */}
       <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b cursor-default" style={{ borderColor: 'var(--border-primary)' }}>
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:!text-white group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
-            <Calendar className="w-5 h-5" />
+          <div className="p-2.5 rounded-2xl bg-teal-500/10 text-teal-700 dark:text-teal-300">
+            <Calendar className="w-5 h-5 text-teal-600" />
           </div>
           <div>
-            <h3 className="text-xl font-bold tracking-tight text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <span>{taksitSayisi} Aylık Resmî Geri Ödeme Planı</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
+                {taksitSayisi} Aylık Resmî Geri Ödeme Planı
+              </h3>
               <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
                 planTipi === 'kanuni'
                   ? 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20'
@@ -110,11 +114,11 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
               }`}>
                 {planTipi === 'kanuni' ? '6183 m.48 Resmî SGK Usulü' : 'Eşit Sabit Taksit'}
               </span>
-            </h3>
-            <p className="text-xs text-slate-500 font-medium">
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
               {planTipi === 'kanuni'
                 ? '6183 sayılı Kanun m. 48 uyarınca ay sonu vadelerine göre basit gün faizli resmî cetvel'
-                : 'Toplam tecil faizinin vadeli taksitlere eşit paylaştırıldığı ortalama plan'}
+                : 'Toplam tecil faizinin vadeli taksitlere eşit paylaştırıldığı ortalama taksit planı'}
             </p>
           </div>
         </div>
@@ -178,7 +182,7 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
             <Clock className="w-3.5 h-3.5 text-teal-600" />
             <span>1. Vadeli Taksit:</span>
           </div>
-          <div className="text-base font-black text-slate-800 dark:text-slate-100 font-mono">
+          <div className="text-base font-black text-slate-800 dark:text-slate-100">
             {formatTL(effectiveIlkTaksit)} ₺
           </div>
           <div className="text-[10px] text-teal-600 dark:text-teal-400 font-medium mt-0.5">
@@ -191,7 +195,7 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
             <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
             <span>Son Taksit ({taksitSayisi}. Ay):</span>
           </div>
-          <div className="text-base font-black text-slate-800 dark:text-slate-100 font-mono">
+          <div className="text-base font-black text-slate-800 dark:text-slate-100">
             {formatTL(effectiveSonTaksit)} ₺
           </div>
           <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">
@@ -201,10 +205,10 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
 
         <div className="p-3.5 rounded-2xl border" style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-primary)' }}>
           <div className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mb-1">
-            <Coins className="w-3.5 h-3.5 text-blue-600" />
+            <Coins className="w-3.5 h-3.5 text-teal-600" />
             <span>Ortalama Aylık:</span>
           </div>
-          <div className="text-base font-black text-teal-700 dark:text-teal-400 font-mono">
+          <div className="text-base font-black text-teal-700 dark:text-teal-400">
             {formatTL(effectiveOrtalama)} ₺
           </div>
           <div className="text-[10px] text-slate-400 font-medium mt-0.5">
@@ -217,7 +221,7 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
             <Percent className="w-3.5 h-3.5 text-purple-600" />
             <span>Toplam Tecil Faizi:</span>
           </div>
-          <div className="text-base font-black text-purple-700 dark:text-purple-400 font-mono">
+          <div className="text-base font-black text-purple-700 dark:text-purple-400">
             {formatTL(toplamFaiz)} ₺
           </div>
           <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium mt-0.5">
@@ -230,7 +234,7 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
             <span>Toplam Geri Ödeme:</span>
           </div>
-          <div className="text-base font-black text-emerald-700 dark:text-emerald-400 font-mono">
+          <div className="text-base font-black text-emerald-700 dark:text-emerald-400">
             {formatTL(toplamOdeme)} ₺
           </div>
           <div className="text-[10px] text-emerald-600 font-medium mt-0.5">
@@ -247,15 +251,21 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
         </div>
         <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
           SGK taksitlendirmelerinde taksit vadeleri takip eden ayların son günü olarak belirlenir. Tecil faizi, müracaat tarihinden her bir taksitin ödeme tarihine kadar geçen gün sayısı üzerinden basit faizle hesaplanır:{' '}
-          <code className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 font-mono text-[11px] font-bold text-teal-700 dark:text-teal-300">
+          <span className="px-1.5 py-0.5 rounded bg-white/80 dark:bg-slate-900/80 font-bold text-teal-800 dark:text-teal-200 border border-teal-500/30">
             Tecil Faizi = (Taksit Ana Parası × Yıllık Faiz Oranı × Gün Sayısı) / 36.000
-          </code>
+          </span>
           . Peşinat, müracaat/işlem tarihinde derhal ödendiği için tecil faizi işletilmez (—).
         </p>
       </div>
 
-      {/* Resmî Geri Ödeme Tablosu - Proje Temasıyla Tam Uyumlu */}
-      <div className="overflow-hidden rounded-2xl border shadow-sm" style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--bg-secondary)' }}>
+      {/* Resmî Geri Ödeme Tablosu - İstediğiniz Orijinal Plan Formatı (Proje Renklerinde) */}
+      <div
+        className="overflow-hidden rounded-2xl border shadow-sm"
+        style={{
+          borderColor: 'var(--border-primary)',
+          backgroundColor: 'var(--bg-secondary)',
+        }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs sm:text-sm">
             <thead>
@@ -274,24 +284,24 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
                 <th className="p-4 text-right font-black">ÖDEME TARİHİ</th>
               </tr>
             </thead>
-            <tbody className="divide-y font-mono" style={{ borderColor: 'var(--border-primary)' }}>
+            <tbody className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
               {taksitler.map((t, idx) => {
                 const isPesinatRow = t.isPesinat || t.no === 'Peşinat';
 
                 return (
                   <tr
                     key={idx}
-                    className="hover:bg-teal-500/5 transition-colors"
+                    className="hover:bg-slate-500/5 dark:hover:bg-slate-800/40 transition-colors"
                     style={{ color: 'var(--text-primary)' }}
                   >
                     {/* TAKSİT */}
-                    <td className="p-4 text-left font-bold font-sans">
+                    <td className="p-4 text-left font-bold">
                       {isPesinatRow ? (
                         <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
                           Peşinat
                         </span>
                       ) : (
-                        <span className="text-slate-500 font-semibold">{t.no}</span>
+                        <span className="text-slate-600 dark:text-slate-400 font-semibold">{t.no}</span>
                       )}
                     </td>
 
@@ -303,7 +313,7 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
                     {/* FAİZ */}
                     <td className="p-4 text-right font-bold text-amber-600 dark:text-amber-400">
                       {isPesinatRow || t.faiz === 0 ? (
-                        <span className="text-slate-400 font-sans">—</span>
+                        <span className="text-slate-400">—</span>
                       ) : (
                         `${formatTL(t.faiz)} ₺`
                       )}
@@ -315,7 +325,7 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
                     </td>
 
                     {/* ÖDEME TARİHİ */}
-                    <td className="p-4 text-right font-sans font-medium text-slate-600 dark:text-slate-400">
+                    <td className="p-4 text-right font-medium text-slate-600 dark:text-slate-400">
                       {t.vadeTarihi}
                     </td>
                   </tr>
@@ -324,13 +334,13 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
             </tbody>
             <tfoot>
               <tr
-                className="border-t-2 font-mono font-bold text-xs sm:text-sm"
+                className="border-t-2 font-bold text-xs sm:text-sm"
                 style={{
                   backgroundColor: 'var(--bg-elevated)',
                   borderColor: 'var(--border-primary)',
                 }}
               >
-                <td className="p-4 text-left font-black font-sans text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                <td className="p-4 text-left font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
                   TOPLAM
                 </td>
                 <td className="p-4 text-right font-black text-slate-900 dark:text-slate-100">
@@ -342,7 +352,7 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
                 <td className="p-4 text-right font-black text-teal-700 dark:text-teal-400 text-sm sm:text-base">
                   {formatTL(toplamOdeme)} ₺
                 </td>
-                <td className="p-4 text-right font-sans text-slate-400 font-bold">
+                <td className="p-4 text-right text-slate-400 font-bold">
                   —
                 </td>
               </tr>

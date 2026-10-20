@@ -886,7 +886,7 @@ export default function App() {
                 style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
               >
                 <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block">Toplam Borç (Asıl)</span>
-                <span className="text-sm sm:text-base font-black font-mono text-slate-900 dark:text-slate-100">
+                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
                   {formatTL(hesapSonucu.anaPara)} ₺
                 </span>
               </div>
@@ -897,7 +897,7 @@ export default function App() {
                 style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
               >
                 <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 block">İlk Taksit (Peşinat)</span>
-                <span className="text-sm sm:text-base font-black font-mono text-amber-700 dark:text-amber-400">
+                <span className="text-sm sm:text-base font-black text-amber-700 dark:text-amber-400">
                   {formatTL(hesapSonucu.pesinat)} ₺
                 </span>
               </div>
@@ -908,7 +908,7 @@ export default function App() {
                 style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
               >
                 <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block">Tecile Konu Borç</span>
-                <span className="text-sm sm:text-base font-black font-mono text-slate-900 dark:text-slate-100">
+                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
                   {formatTL(hesapSonucu.kalanBorc)} ₺
                 </span>
               </div>
@@ -919,7 +919,7 @@ export default function App() {
                 style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
               >
                 <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block">Vade Süresi</span>
-                <span className="text-sm sm:text-base font-black font-mono text-teal-700 dark:text-teal-400">
+                <span className="text-sm sm:text-base font-black text-teal-700 dark:text-teal-400">
                   {hesapSonucu.taksitSayisi} Ay
                 </span>
               </div>
@@ -930,7 +930,7 @@ export default function App() {
                 style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
               >
                 <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 block">Toplam Tecil Faizi</span>
-                <span className="text-sm sm:text-base font-black font-mono text-amber-700 dark:text-amber-400">
+                <span className="text-sm sm:text-base font-black text-amber-700 dark:text-amber-400">
                   {formatTL(hesapSonucu.toplamFaiz)} ₺
                 </span>
               </div>
@@ -949,7 +949,7 @@ export default function App() {
                 </div>
                 {planTipi === 'kanuni' ? (
                   <div>
-                    <div className="text-xs sm:text-sm font-black font-mono text-teal-900 dark:text-teal-200">
+                    <div className="text-xs sm:text-sm font-black text-teal-900 dark:text-teal-200">
                       {formatTL(hesapSonucu.ilkTaksitTutari)} ₺ → {formatTL(hesapSonucu.sonTaksitTutari)} ₺
                     </div>
                     <div className="text-[10px] text-teal-700 dark:text-teal-400 font-medium">
@@ -957,7 +957,7 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <span className="text-sm sm:text-base font-black font-mono text-teal-900 dark:text-teal-200">
+                  <span className="text-sm sm:text-base font-black text-teal-900 dark:text-teal-200">
                     {formatTL(hesapSonucu.aylikSabitTaksit)} ₺
                   </span>
                 )}

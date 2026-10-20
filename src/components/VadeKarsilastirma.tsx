@@ -78,9 +78,9 @@ export const VadeKarsilastirma: React.FC<VadeKarsilastirmaProps> = ({
                     )}
                   </div>
 
-                  <div className="space-y-1 font-mono text-xs">
+                  <div className="space-y-1 text-xs">
                     <div className="flex justify-between items-baseline">
-                      <span className="text-slate-500 font-sans text-[11px]">1. Taksit:</span>
+                      <span className="text-slate-500 text-[11px]">1. Taksit:</span>
                       <span className="font-black text-teal-700 dark:text-teal-400">
                         {formatTL(res.ilkTaksitTutari)} ₺
                       </span>
