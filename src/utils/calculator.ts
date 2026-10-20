@@ -1,7 +1,7 @@
 import { HesaplamaSonucu, TaksitItem } from '../types';
 
-export function formatTL(val: number): string {
-  if (isNaN(val) || val === null || val === undefined) return '0,00';
+export function formatTL(val?: number | null): string {
+  if (val === undefined || val === null || isNaN(val)) return '0,00';
   return val.toLocaleString('tr-TR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -70,17 +70,39 @@ export function addMonthsToDate(dateStr: string, months: number): string {
   return `${resY}-${resM}-${resD}`;
 }
 
+export function getEndOfMonth(baseDateStr: string, monthOffset: number): string {
+  const parts = baseDateStr.split('-');
+  if (parts.length < 3) return baseDateStr;
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const dt = new Date(y, m + monthOffset, 0);
+  const resY = dt.getFullYear();
+  const resM = String(dt.getMonth() + 1).padStart(2, '0');
+  const resD = String(dt.getDate()).padStart(2, '0');
+  return `${resY}-${resM}-${resD}`;
+}
+
+export function getDaysBetween(startDateStr: string, endDateStr: string): number {
+  const [sy, sm, sd] = startDateStr.split('-').map(Number);
+  const [ey, em, ed] = endDateStr.split('-').map(Number);
+  const s = Date.UTC(sy, sm - 1, sd);
+  const e = Date.UTC(ey, em - 1, ed);
+  return Math.max(0, Math.round((e - s) / (1000 * 60 * 60 * 24)));
+}
+
 export function calculate6183(
   borc: number,
   taksitSayisi: number,
   pesinat: number,
   baslangicTarihi: string,
-  faizOraniYillik: number = 39
+  faizOraniYillik: number = 39,
+  planTipi: 'kanuni' | 'esit' = 'kanuni',
+  _unused?: boolean
 ): HesaplamaSonucu {
   const kalanBorc = Math.max(0, borc - pesinat);
   const n = taksitSayisi;
 
-  if (n <= 0 || kalanBorc <= 0) {
+  if (n <= 0 || (borc <= 0 && pesinat <= 0)) {
     return {
       anaPara: borc,
       pesinat,
@@ -90,34 +112,114 @@ export function calculate6183(
       toplamFaiz: 0,
       toplamOdeme: borc,
       aylikSabitTaksit: 0,
+      ilkTaksitTutari: 0,
+      sonTaksitTutari: 0,
+      planTipi,
       taksitler: [],
     };
   }
 
-  // 6183 sayılı Kanun 48. madde formülü:
-  // Toplam Tecil Faizi = Kalan Borç * (Faiz Oranı / 100) * ((Taksit Sayısı + 1) / 24)
-  const toplamFaiz = kalanBorc * (faizOraniYillik / 100) * ((n + 1) / 24);
-  const toplamGeriOdeme = kalanBorc + toplamFaiz;
-  const aylikSabitTaksit = toplamGeriOdeme / n;
-
   const taksitler: TaksitItem[] = [];
-  let mevcutKalanAnaPara = kalanBorc;
-  const aylikAnaParaPayi = kalanBorc / n;
-  const aylikFaizPayi = toplamFaiz / n;
+  let toplamFaiz = 0;
 
-  for (let i = 1; i <= n; i++) {
-    const vade = addMonthsToDate(baslangicTarihi, i);
-    mevcutKalanAnaPara = Math.max(0, mevcutKalanAnaPara - aylikAnaParaPayi);
-
+  if (pesinat > 0) {
+    // 1. Satır: Peşinat (Ödeme Tarihi: Başlangıç/Müracaat Tarihi, Faizsiz)
     taksitler.push({
-      no: i,
-      vadeTarihi: formatDateTR(vade),
-      anaPara: aylikAnaParaPayi,
-      kalanAnaPara: mevcutKalanAnaPara,
-      faiz: aylikFaizPayi,
-      toplamTaksit: aylikSabitTaksit,
+      no: 'Peşinat',
+      vadeTarihi: formatDateTR(baslangicTarihi),
+      gunSayisi: 0,
+      ayNo: 0,
+      anaPara: pesinat,
+      kalanAnaPara: kalanBorc,
+      faiz: 0,
+      toplamTaksit: pesinat,
+      isPesinat: true,
     });
+
+    const vadeliTaksitSayisi = n > 1 ? n - 1 : 0;
+    if (vadeliTaksitSayisi > 0 && kalanBorc > 0) {
+      const tabanAnaPara = Math.floor((kalanBorc / vadeliTaksitSayisi) * 100) / 100;
+      const kurusFarki = Math.round((kalanBorc - tabanAnaPara * vadeliTaksitSayisi) * 100) / 100;
+      let mevcutKalan = kalanBorc;
+
+      for (let i = 1; i <= vadeliTaksitSayisi; i++) {
+        const taksitNo = i + 1; // 2, 3, 4, ... n
+        const vadeISO = getEndOfMonth(baslangicTarihi, i); // Takip eden ayların son günü
+        const gunSayisi = getDaysBetween(baslangicTarihi, vadeISO);
+        const anaParaPayi = i === vadeliTaksitSayisi ? Math.round((tabanAnaPara + kurusFarki) * 100) / 100 : tabanAnaPara;
+
+        let taksitFaizi = 0;
+        if (planTipi === 'kanuni') {
+          // 6183 m.48 Resmî SGK Gün Formülü: (Ana Para * Faiz Oranı * Gün Sayısı) / 36.000
+          taksitFaizi = Math.round((anaParaPayi * faizOraniYillik * gunSayisi / 36000) * 100) / 100;
+        } else {
+          // Eşit taksitli model: Ortalama taksit
+          const formulToplamFaiz = kalanBorc * (faizOraniYillik / 100) * ((vadeliTaksitSayisi + 1) / 24);
+          taksitFaizi = Math.round((formulToplamFaiz / vadeliTaksitSayisi) * 100) / 100;
+        }
+
+        toplamFaiz += taksitFaizi;
+        mevcutKalan = Math.max(0, Math.round((mevcutKalan - anaParaPayi) * 100) / 100);
+        const toplamTaksit = Math.round((anaParaPayi + taksitFaizi) * 100) / 100;
+
+        taksitler.push({
+          no: taksitNo,
+          vadeTarihi: formatDateTR(vadeISO),
+          gunSayisi,
+          ayNo: i,
+          anaPara: anaParaPayi,
+          kalanAnaPara: mevcutKalan,
+          faiz: taksitFaizi,
+          toplamTaksit,
+          isPesinat: false,
+        });
+      }
+    }
+  } else {
+    // Peşinatsız Tecil: 1'den n'e kadar vadeli taksitler
+    const tabanAnaPara = Math.floor((borc / n) * 100) / 100;
+    const kurusFarki = Math.round((borc - tabanAnaPara * n) * 100) / 100;
+    let mevcutKalan = borc;
+
+    for (let i = 1; i <= n; i++) {
+      const taksitNo = i;
+      const vadeISO = getEndOfMonth(baslangicTarihi, i);
+      const gunSayisi = getDaysBetween(baslangicTarihi, vadeISO);
+      const anaParaPayi = i === n ? Math.round((tabanAnaPara + kurusFarki) * 100) / 100 : tabanAnaPara;
+
+      let taksitFaizi = 0;
+      if (planTipi === 'kanuni') {
+        taksitFaizi = Math.round((anaParaPayi * faizOraniYillik * gunSayisi / 36000) * 100) / 100;
+      } else {
+        const formulToplamFaiz = borc * (faizOraniYillik / 100) * ((n + 1) / 24);
+        taksitFaizi = Math.round((formulToplamFaiz / n) * 100) / 100;
+      }
+
+      toplamFaiz += taksitFaizi;
+      mevcutKalan = Math.max(0, Math.round((mevcutKalan - anaParaPayi) * 100) / 100);
+      const toplamTaksit = Math.round((anaParaPayi + taksitFaizi) * 100) / 100;
+
+      taksitler.push({
+        no: taksitNo,
+        vadeTarihi: formatDateTR(vadeISO),
+        gunSayisi,
+        ayNo: i,
+        anaPara: anaParaPayi,
+        kalanAnaPara: mevcutKalan,
+        faiz: taksitFaizi,
+        toplamTaksit,
+        isPesinat: false,
+      });
+    }
   }
+
+  const nihaiToplamFaiz = Math.round(toplamFaiz * 100) / 100;
+  const vadeliTaksitler = taksitler.filter((t) => !t.isPesinat);
+  const ilkTaksitTutari = vadeliTaksitler[0]?.toplamTaksit || pesinat;
+  const sonTaksitTutari = vadeliTaksitler[vadeliTaksitler.length - 1]?.toplamTaksit || pesinat;
+  const aylikSabitTaksit = vadeliTaksitler.length > 0
+    ? Math.round(((kalanBorc + nihaiToplamFaiz) / vadeliTaksitSayisiOrN(n, pesinat)) * 100) / 100
+    : 0;
 
   return {
     anaPara: borc,
@@ -125,12 +227,24 @@ export function calculate6183(
     kalanBorc,
     taksitSayisi: n,
     faizOrani: faizOraniYillik,
-    toplamFaiz,
-    toplamOdeme: pesinat + toplamGeriOdeme,
+    toplamFaiz: nihaiToplamFaiz,
+    toplamOdeme: borc + nihaiToplamFaiz,
     aylikSabitTaksit,
+    ilkTaksitTutari,
+    sonTaksitTutari,
+    planTipi,
     taksitler,
   };
 }
+
+function vadeliTaksitSayisiOrN(n: number, pesinat: number): number {
+  if (pesinat > 0) {
+    return Math.max(1, n - 1);
+  }
+  return Math.max(1, n);
+}
+
+
 
 export function getYetkiBilgisi(borc: number): { makam: string; aciklama: string } {
   // SGK 2024/12 ve 2026/15 Genelgeleri yetki limitleri

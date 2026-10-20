@@ -97,12 +97,16 @@ export default function App() {
   const [isletmeAlacak, setIsletmeAlacak] = useState('30.000,00');
   const [isletmeBorclar, setIsletmeBorclar] = useState('150.000,00');
 
+  // Plan Tipi: 'kanuni' (6183 m.48 Artan Faizli - SGK Resmî Usulü) | 'esit' (Eşit Sabit Taksit)
+  const [planTipi, setPlanTipi] = useState<'kanuni' | 'esit'>('kanuni');
+  const [pesinatDahilMi, setPesinatDahilMi] = useState(false);
+
   // Hesaplama sonucu
   const [hesapSonucu, setHesapSonucu] = useState(() => {
     const borc = parseTL(borcInput);
     const pesinat = parseTL(pesinatInput);
     const faiz = parseFloat(faizOraniInput) || 39;
-    return calculate6183(borc, taksitSayisi, pesinat, pesinatTarihi, faiz);
+    return calculate6183(borc, taksitSayisi, pesinat, pesinatTarihi, faiz, 'kanuni', false);
   });
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -110,6 +114,26 @@ export default function App() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handlePlanTipiChange = (newPlan: 'kanuni' | 'esit') => {
+    setPlanTipi(newPlan);
+    const borc = parseTL(borcInput);
+    const pesinat = parseTL(pesinatInput);
+    const faiz = parseFloat(faizOraniInput) || 39;
+    const res = calculate6183(borc, taksitSayisi, pesinat, pesinatTarihi, faiz, newPlan, pesinatDahilMi);
+    setHesapSonucu(res);
+    showToast(newPlan === 'kanuni' ? '6183 m.48 Resmî Kanuni Plan (artan faizli) seçildi.' : 'Eşit sabit taksitli plan seçildi.');
+  };
+
+  const handlePesinatDahilMiChange = (newPd: boolean) => {
+    setPesinatDahilMi(newPd);
+    const borc = parseTL(borcInput);
+    const pesinat = parseTL(pesinatInput);
+    const faiz = parseFloat(faizOraniInput) || 39;
+    const res = calculate6183(borc, taksitSayisi, pesinat, pesinatTarihi, faiz, planTipi, newPd);
+    setHesapSonucu(res);
+    showToast(newPd ? 'Peşinat tablonun 1. sırasına dahil edildi.' : 'Peşinat tablodan ayrıldı.');
   };
 
   const handleBorcChange = (val: string) => {
@@ -130,7 +154,7 @@ export default function App() {
       }
       setPesinatInput(formatTL(autoPesinat));
       const faiz = parseFloat(faizOraniInput) || 39;
-      const res = calculate6183(numeric, taksitSayisi, autoPesinat, pesinatTarihi, faiz);
+      const res = calculate6183(numeric, taksitSayisi, autoPesinat, pesinatTarihi, faiz, planTipi, pesinatDahilMi);
       setHesapSonucu(res);
     }
   };
@@ -139,7 +163,7 @@ export default function App() {
     const borc = parseTL(borcInput);
     const pesinat = parseTL(pesinatInput);
     const faiz = parseFloat(faizOraniInput) || 39;
-    const res = calculate6183(borc, taksitSayisi, pesinat, pesinatTarihi, faiz);
+    const res = calculate6183(borc, taksitSayisi, pesinat, pesinatTarihi, faiz, planTipi, pesinatDahilMi);
     setHesapSonucu(res);
     showToast('Hesaplama başarıyla güncellendi.');
   };
@@ -158,7 +182,7 @@ export default function App() {
     }
     setPesinatInput(formatTL(autoPesinat));
     const faiz = parseFloat(faizOraniInput) || 39;
-    const res = calculate6183(borc, newVade, autoPesinat, pesinatTarihi, faiz);
+    const res = calculate6183(borc, newVade, autoPesinat, pesinatTarihi, faiz, planTipi, pesinatDahilMi);
     setHesapSonucu(res);
     showToast(`${newVade} aylık vade seçildi ve hesaplama güncellendi.`);
   };
@@ -175,7 +199,7 @@ export default function App() {
       setPesinatInput(formatTL(pesinat));
     }
     const faiz = parseFloat(faizOraniInput) || 39;
-    const res = calculate6183(borc, validVade, pesinat, pesinatTarihi, faiz);
+    const res = calculate6183(borc, validVade, pesinat, pesinatTarihi, faiz, planTipi, pesinatDahilMi);
     setHesapSonucu(res);
   };
 
@@ -186,7 +210,7 @@ export default function App() {
     setPesinatMode('taksiteGore');
     setPesinatInput(formatTL(autoP));
     const faiz = parseFloat(faizOraniInput) || 39;
-    const res = calculate6183(borc, validT, autoP, pesinatTarihi, faiz);
+    const res = calculate6183(borc, validT, autoP, pesinatTarihi, faiz, planTipi, pesinatDahilMi);
     setHesapSonucu(res);
     showToast(`İlk taksit ${validT} aya eşit bölünerek (${formatTL(autoP)} ₺) ayarlandı.`);
   };
@@ -197,7 +221,7 @@ export default function App() {
     setPesinatMode('yuzdeOn');
     setPesinatInput(formatTL(autoP));
     const faiz = parseFloat(faizOraniInput) || 39;
-    const res = calculate6183(borc, taksitSayisi, autoP, pesinatTarihi, faiz);
+    const res = calculate6183(borc, taksitSayisi, autoP, pesinatTarihi, faiz, planTipi, pesinatDahilMi);
     setHesapSonucu(res);
     showToast(`İlk taksit yasal asgari 1/10 (%10 = ${formatTL(autoP)} ₺) olarak ayarlandı.`);
   };
@@ -217,7 +241,7 @@ export default function App() {
     }
     setPesinatInput(formatTL(pesinatVal));
     const faiz = parseFloat(faizOraniInput) || 39;
-    const res = calculate6183(newBorc, taksitSayisi, pesinatVal, pesinatTarihi, faiz);
+    const res = calculate6183(newBorc, taksitSayisi, pesinatVal, pesinatTarihi, faiz, planTipi, pesinatDahilMi);
     setHesapSonucu(res);
   };
 
@@ -226,7 +250,7 @@ export default function App() {
     setPesinatInput(formatTL(newPesinat));
     const borc = parseTL(borcInput);
     const faiz = parseFloat(faizOraniInput) || 39;
-    const res = calculate6183(borc, taksitSayisi, newPesinat, pesinatTarihi, faiz);
+    const res = calculate6183(borc, taksitSayisi, newPesinat, pesinatTarihi, faiz, planTipi, pesinatDahilMi);
     setHesapSonucu(res);
   };
 
@@ -293,7 +317,7 @@ export default function App() {
       }
       setPesinatInput(formatTL(autoPesinat));
       const faiz = parseFloat(faizOraniInput) || 39;
-      const res = calculate6183(amount, taksitSayisi, autoPesinat, pesinatTarihi, faiz);
+      const res = calculate6183(amount, taksitSayisi, autoPesinat, pesinatTarihi, faiz, planTipi, pesinatDahilMi);
       setHesapSonucu(res);
       showToast(`SGK dökümündeki tutar (${formatted} ₺) aktarıldı. İlk taksit (${formatTL(autoPesinat)} ₺) tecil planına yansıtıldı.`);
     }
@@ -915,12 +939,28 @@ export default function App() {
               <div
                 className="p-4 rounded-2xl border shadow-sm space-y-1 bg-teal-500/10 border-teal-500/30"
               >
-                <span className="text-[11px] font-black text-teal-800 dark:text-teal-300 block">
-                  Aylık Sabit Taksit
-                </span>
-                <span className="text-sm sm:text-base font-black font-mono text-teal-900 dark:text-teal-200">
-                  {formatTL(hesapSonucu.aylikSabitTaksit)} ₺
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black text-teal-800 dark:text-teal-300 block">
+                    {planTipi === 'kanuni' ? 'Taksit Aralığı (6183 m.48)' : 'Aylık Sabit Taksit'}
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-teal-600 text-white font-bold">
+                    {planTipi === 'kanuni' ? 'Yasal' : 'Eşit'}
+                  </span>
+                </div>
+                {planTipi === 'kanuni' ? (
+                  <div>
+                    <div className="text-xs sm:text-sm font-black font-mono text-teal-900 dark:text-teal-200">
+                      {formatTL(hesapSonucu.ilkTaksitTutari)} ₺ → {formatTL(hesapSonucu.sonTaksitTutari)} ₺
+                    </div>
+                    <div className="text-[10px] text-teal-700 dark:text-teal-400 font-medium">
+                      Ort: {formatTL(hesapSonucu.aylikSabitTaksit)} ₺ / ay
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-sm sm:text-base font-black font-mono text-teal-900 dark:text-teal-200">
+                    {formatTL(hesapSonucu.aylikSabitTaksit)} ₺
+                  </span>
+                )}
               </div>
             </div>
 
@@ -936,9 +976,19 @@ export default function App() {
             <TaksitTablosu
               taksitler={hesapSonucu.taksitler}
               toplamBorc={hesapSonucu.anaPara}
+              kalanBorc={hesapSonucu.kalanBorc}
+              pesinat={hesapSonucu.pesinat}
               toplamFaiz={hesapSonucu.toplamFaiz}
               toplamOdeme={hesapSonucu.toplamOdeme}
               taksitSayisi={hesapSonucu.taksitSayisi}
+              faizOrani={hesapSonucu.faizOrani}
+              planTipi={planTipi}
+              onPlanTipiChange={handlePlanTipiChange}
+              pesinatDahilMi={pesinatDahilMi}
+              onPesinatDahilMiChange={handlePesinatDahilMiChange}
+              ilkTaksitTutari={hesapSonucu.ilkTaksitTutari}
+              sonTaksitTutari={hesapSonucu.sonTaksitTutari}
+              aylikSabitTaksit={hesapSonucu.aylikSabitTaksit}
             />
           </section>
         )}

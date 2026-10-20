@@ -1751,10 +1751,10 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                   {/* Aylık Taksit Tutarı */}
                   <div className="bg-teal-50 dark:bg-teal-950/40 px-3 py-1 rounded-lg border border-teal-300 dark:border-teal-700 shadow-xs">
                     <div className="text-[9.5px] text-teal-700 dark:text-teal-300 font-bold uppercase tracking-wider">
-                      Aylık Sabit Taksit ({customTaksit} Ay)
+                      6183 m.48 Taksit ({customTaksit} Ay)
                     </div>
-                    <div className="font-mono font-black text-teal-900 dark:text-teal-100 text-sm">
-                      {formatTL(liveCalculation.aylikSabitTaksit)} ₺ / ay
+                    <div className="font-mono font-black text-teal-900 dark:text-teal-100 text-xs">
+                      {formatTL(liveCalculation.ilkTaksitTutari)} ₺ → {formatTL(liveCalculation.sonTaksitTutari)} ₺
                     </div>
                   </div>
 
