@@ -231,11 +231,11 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
                 onOpenMuvafakatname();
                 onClose();
               }}
-              className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 border border-rose-500/30 font-bold shrink-0 cursor-pointer ml-auto"
-              title="Resmî Muvafakatname ve Belge Düzenleyiciyi A4 Formatında Aç"
+              className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 border border-teal-500/30 font-bold shrink-0 cursor-pointer ml-auto"
+              title="Resmî EK-9 Muvafakatname ve Belge Düzenleyiciyi A4 Formatında Aç"
             >
-              <FileSignature className="w-3.5 h-3.5 text-rose-600" />
-              <span>Muvafakatname (A4)</span>
+              <FileSignature className="w-3.5 h-3.5 text-teal-600" />
+              <span>EK-9 Muvafakatname</span>
             </button>
           )}
         </div>

@@ -277,13 +277,13 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
                 <div>
                   <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <span>Muvafakatname &amp; Belge</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-600 text-white font-black">
-                      A4
+                    <span>EK-9 Muvafakatname &amp; Belge</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-teal-600 text-white font-black">
+                      EK-9
                     </span>
                   </div>
                   <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
-                    Resmî muvafakat ve izin belgeleri
+                    SGK 2024/12 resmî muvafakat ve taahhüt belgeleri
                   </div>
                 </div>
               </button>
