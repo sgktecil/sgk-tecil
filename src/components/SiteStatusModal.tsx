@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { X, Globe, Lock, ShieldCheck, Power, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import { X, Globe, Lock, ShieldCheck, Power, AlertTriangle, CheckCircle2, Loader2, Eye } from 'lucide-react';
 
 interface SiteStatusModalProps {
   isOpen: boolean;
   onClose: () => void;
   isSiteOpen: boolean;
   onToggleSiteStatus: (isOpen: boolean) => Promise<void> | void;
+  onPreviewMaintenance?: () => void;
 }
 
 export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
@@ -13,6 +14,7 @@ export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
   onClose,
   isSiteOpen,
   onToggleSiteStatus,
+  onPreviewMaintenance,
 }) => {
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -96,15 +98,31 @@ export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
               <span>{isUpdating ? 'Sunucu Güncelleniyor...' : 'Siteyi Kapat (Bakım Moduna Al)'}</span>
             </button>
           ) : (
-            <button
-              type="button"
-              disabled={isUpdating}
-              onClick={() => handleToggle(true)}
-              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
-            >
-              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
-              <span>{isUpdating ? 'Sunucu Güncelleniyor...' : 'Siteyi Canlıya Aç (Yayına Al)'}</span>
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={isUpdating}
+                onClick={() => handleToggle(true)}
+                className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+              >
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                <span>{isUpdating ? 'Sunucu Güncelleniyor...' : 'Siteyi Canlıya Aç (Yayına Al)'}</span>
+              </button>
+
+              {onPreviewMaintenance && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onPreviewMaintenance();
+                    onClose();
+                  }}
+                  className="w-full py-2.5 rounded-2xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Eye className="w-4 h-4 text-amber-400" />
+                  <span>Ziyaretçilerin Gördüğü Bakım Ekranını Önizle</span>
+                </button>
+              )}
+            </>
           )}
 
           <div className="text-[11px] text-slate-500 text-center leading-normal pt-1">

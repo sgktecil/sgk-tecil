@@ -430,37 +430,6 @@ export default function App() {
         color: 'var(--text-primary)',
       }}
     >
-      {/* Geliştirici Çalışma Şeridi (Canlı Kapalıyken Sadece Sizin Çalışma Ekranınızda Görünür) */}
-      {!isSiteOpen && (
-        <aside aria-label="Geliştirici Çalışma Durumu" className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-xs flex items-center justify-between flex-wrap gap-2 text-amber-900 dark:text-amber-200 no-print">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-            <span className="font-extrabold">Canlı Site Dış Dünyaya Kapalı (Bakım Modunda)</span>
-            <span className="text-slate-600 dark:text-slate-300 hidden sm:inline">
-              — Bu ortamda formları, taksit planını ve kodları serbestçe geliştirmeye ve test etmeye devam edebilirsiniz.
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPreviewVisitorView(true)}
-              className="px-2.5 py-1 rounded-xl bg-slate-800 text-white hover:bg-slate-700 font-bold text-[11px] transition-all cursor-pointer shadow-sm"
-              title="Ziyaretçilerin gördüğü bakım ekranını test et"
-            >
-              👁️ Ziyaretçi Ekranını Test Et
-            </button>
-            <button
-              type="button"
-              onClick={() => setSiteStatusModalOpen(true)}
-              className="px-2.5 py-1 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 font-bold text-[11px] transition-all cursor-pointer shadow-sm"
-              title="Siteyi tüm ziyaretçilere aç"
-            >
-              🚀 Siteyi Canlıya Aç
-            </button>
-          </div>
-        </aside>
-      )}
-
       {/* Header & Tools Navbar */}
       <Header
         onOpenDrawer={openDrawer}
@@ -1051,6 +1020,18 @@ export default function App() {
         <div className="max-w-6xl mx-auto px-4 flex items-center justify-between flex-wrap gap-2 text-[11px]">
           <span>Sosyal Güvenlik Kurumu 6183/48 Takip ve Tecil Taksitlendirme Portalı</span>
           <div className="flex items-center gap-2 text-slate-400">
+            {/* Canlı durumu göstergesi (Sadece site kapalıyken footerda zarifçe yer alır) */}
+            {!isSiteOpen && (
+              <button
+                type="button"
+                onClick={() => setSiteStatusModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[10px] font-bold border border-rose-500/20 transition-all cursor-pointer"
+                title="Canlı site şu an ziyaretçilere kapalıdır. Yönetmek için tıklayın (Alt + K)"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                <span>Canlı: Kapalı</span>
+              </button>
+            )}
             <span>© {new Date().getFullYear()}</span>
             {/* Ziyaretçilerin farketmeyeceği şeffaf yönetici butonu */}
             <button
@@ -1088,6 +1069,7 @@ export default function App() {
         onClose={() => setSiteStatusModalOpen(false)}
         isSiteOpen={isSiteOpen}
         onToggleSiteStatus={handleToggleSiteStatus}
+        onPreviewMaintenance={() => setPreviewVisitorView(true)}
       />
     </div>
   );
