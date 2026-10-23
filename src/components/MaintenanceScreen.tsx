@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { SGKEmblem } from './Emblems';
-import { Lock, Unlock, KeyRound, ShieldAlert, Sparkles, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Lock, Unlock, KeyRound, ShieldAlert, Sparkles, CheckCircle2, ArrowRight, Wrench, Globe } from 'lucide-react';
 
 interface MaintenanceScreenProps {
   onUnlockSite: () => void;
+  onContinueDevelopment?: () => void;
 }
 
-export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({ onUnlockSite }) => {
+export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({
+  onUnlockSite,
+  onContinueDevelopment,
+}) => {
   const [showAdminPin, setShowAdminPin] = useState(false);
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
@@ -15,7 +19,11 @@ export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({ onUnlockSi
     e.preventDefault();
     // Kabul edilen şifreler: 1923, 6183, admin, 1234
     if (pin === '1923' || pin === '6183' || pin.toLowerCase() === 'admin' || pin === '1234') {
-      onUnlockSite();
+      if (onContinueDevelopment) {
+        onContinueDevelopment();
+      } else {
+        onUnlockSite();
+      }
     } else {
       setError(true);
       setTimeout(() => setError(false), 2500);
@@ -25,7 +33,10 @@ export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({ onUnlockSi
   // Alt + K kısayolu bakım ekranında da yönetici panelini açar
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.altKey && (e.key === 'k' || e.key === 'K')) || (e.ctrlKey && e.shiftKey && (e.key === 'a' || e.key === 'A'))) {
+      if (
+        (e.altKey && (e.key === 'k' || e.key === 'K')) ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'a' || e.key === 'A'))
+      ) {
         e.preventDefault();
         setShowAdminPin((prev) => !prev);
       }
@@ -41,7 +52,7 @@ export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({ onUnlockSi
       <div className="absolute bottom-10 right-10 w-80 h-80 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Üst Bar */}
-      <div className="w-full max-w-4xl flex items-center justify-between z-10">
+      <div className="w-full max-w-4xl flex items-center justify-between z-10 flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <SGKEmblem className="w-10 h-10 text-teal-400" />
           <div>
@@ -52,7 +63,7 @@ export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({ onUnlockSi
 
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold">
           <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-          <span>Sistem Kapalı / Bakım Modunda</span>
+          <span>Sistem Dış Dünyaya Kapalı (Bakım Modunda)</span>
         </div>
       </div>
 
@@ -75,72 +86,83 @@ export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({ onUnlockSi
           <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400 space-y-1">
             <div className="flex items-center justify-center gap-2 text-teal-400 font-bold">
               <Sparkles className="w-4 h-4" />
-              <span>Kısa süre sonra tekrar hizmete açılacaktır.</span>
+              <span>Geliştirme ve bakım sonrasında tekrar hizmete açılacaktır.</span>
             </div>
             <div>Güncelleme Tarihi: {new Date().toLocaleDateString('tr-TR')}</div>
           </div>
 
-          {/* Yönetici Girişi / Canlıyı Aç Bölümü */}
-          {!showAdminPin ? (
-            <div className="pt-2">
+          {/* Geliştirici & Yönetici Hızlı Aksiyonları */}
+          <div className="pt-2 flex flex-col items-center gap-3">
+            {onContinueDevelopment && (
+              <button
+                type="button"
+                onClick={onContinueDevelopment}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
+              >
+                <Wrench className="w-4 h-4" />
+                <span>Geliştirmeye Devam Et (Site Kapalı Kalır)</span>
+              </button>
+            )}
+
+            {!showAdminPin ? (
               <button
                 type="button"
                 onClick={() => setShowAdminPin(true)}
                 className="text-xs text-slate-400 hover:text-teal-400 font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <KeyRound className="w-3.5 h-3.5" />
-                <span>Yönetici / Canlıyı Tekrar Aç</span>
+                <span>Yönetici / Canlı Yayını Aç (PIN İle)</span>
               </button>
-            </div>
-          ) : (
-            <form onSubmit={handlePinSubmit} className="pt-2 space-y-3 max-w-xs mx-auto animate-in fade-in duration-200">
-              <div className="text-xs font-bold text-slate-300 flex items-center justify-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-teal-400" />
-                <span>Yönetici Doğrulama (PIN: 1923 veya 6183)</span>
-              </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  autoFocus
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder="PIN giriniz..."
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-center text-sm font-mono tracking-widest text-white focus:outline-none focus:border-teal-500"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-md flex items-center gap-1 shrink-0"
-                >
-                  <Unlock className="w-3.5 h-3.5" />
-                  <span>Aç</span>
-                </button>
-              </div>
-
-              {error && (
-                <div className="text-[11px] font-bold text-rose-400 animate-shake">
-                  Hatalı PIN! (Varsayılan PIN: 1923 veya 6183)
+            ) : (
+              <form onSubmit={handlePinSubmit} className="pt-2 space-y-3 max-w-xs w-full mx-auto animate-in fade-in duration-200">
+                <div className="text-xs font-bold text-slate-300 flex items-center justify-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-teal-400" />
+                  <span>Yönetici Doğrulama (PIN: 1923 veya 6183)</span>
                 </div>
-              )}
 
-              <div className="flex items-center justify-between text-[11px] pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowAdminPin(false)}
-                  className="text-slate-500 hover:text-slate-300"
-                >
-                  Vazgeç
-                </button>
-                <button
-                  type="button"
-                  onClick={onUnlockSite}
-                  className="text-teal-400 hover:underline font-bold"
-                >
-                  Doğrudan Canlıya Al
-                </button>
-              </div>
-            </form>
-          )}
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    autoFocus
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    placeholder="PIN..."
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-center text-sm font-mono tracking-widest text-white focus:outline-none focus:border-teal-500"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-md flex items-center gap-1 shrink-0"
+                  >
+                    <Unlock className="w-3.5 h-3.5" />
+                    <span>Giriş</span>
+                  </button>
+                </div>
+
+                {error && (
+                  <div className="text-[11px] font-bold text-rose-400 animate-shake">
+                    Hatalı PIN! (Varsayılan PIN: 1923 veya 6183)
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-[11px] pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminPin(false)}
+                    className="text-slate-500 hover:text-slate-300 cursor-pointer"
+                  >
+                    Vazgeç
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onUnlockSite}
+                    className="text-teal-400 hover:underline font-bold cursor-pointer"
+                  >
+                    Doğrudan Canlıya Aç
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       </div>
 
