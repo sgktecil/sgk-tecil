@@ -9,30 +9,204 @@ interface A4DocumentProps {
 export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
   const { baslik, ayarlar, borclu, asilBorclu, teminat, metin, ekNotlar, imzalayan1, imzalayan2, sgkZapti } = data;
 
-  // Paragraflara ayır
-  const paragraflar = (metin || '').split('\n\n').filter((p) => p.trim().length > 0);
+  const fontFamClass = ayarlar.yaziTipi === 'sans' ? 'font-sans' : 'font-serif';
 
   const fontSizeClass =
     ayarlar.yaziBoyutu === 'sm'
-      ? 'text-[10.5px] leading-relaxed'
+      ? 'text-[11px] leading-relaxed'
       : ayarlar.yaziBoyutu === 'lg'
-      ? 'text-[12.5px] leading-loose'
-      : 'text-[11.5px] leading-relaxed';
+      ? 'text-[13px] leading-loose'
+      : 'text-[12px] leading-relaxed';
 
-  const fontFamClass = ayarlar.yaziTipi === 'sans' ? 'font-sans' : 'font-serif';
+  // Belge Tarihi
+  const belgeTarihi = ayarlar.evrakTarihi || new Date().toLocaleDateString('tr-TR');
+
+  // Asıl Borçlu Adı
+  const asilBorcluAdi = asilBorclu?.unvan || borclu.isyeriUnvan || '………………………………';
+
+  // Borç Dönemi ve Tutarı
+  const borcDonemi = ayarlar.borcDonemi || '………………';
+  const borcTutari = ayarlar.borcTutari || '…………………… TL';
+
+  // İl Müdürlüğü ve Merkez Adı
+  const ilMudurlugu = ayarlar.altBirimAdi?.split('/')[0]?.trim() || ayarlar.kurumAdi || '………………';
+  const sgkMerkezi = ayarlar.altBirimAdi?.split('/')[1]?.trim() || '';
+
+  // -------------------------------------------------------------
+  // 1. GENELGE MATBU FORMAT (SGK 2024/12 GENELGESİ EK-9 BİREBİR)
+  // -------------------------------------------------------------
+  if (ayarlar.sayfaFormati === 'genelge_matbu') {
+    return (
+      <div className="w-full flex justify-center py-2 sm:py-4 overflow-auto">
+        <div
+          id="muvafakatname-a4-print"
+          className={`w-[210mm] min-h-[297mm] bg-white text-slate-950 p-[20mm] sm:p-[25mm] shadow-2xl rounded-sm print:shadow-none print:m-0 print:p-[15mm] print:w-full print:min-h-0 flex flex-col justify-between ${fontFamClass} relative border border-slate-300 print:border-none`}
+          style={{ boxSizing: 'border-box', color: '#000000' }}
+        >
+          {/* SAĞ ÜST KÖŞE: EK-9 */}
+          <div className="w-full text-right mb-4">
+            <span className="font-extrabold text-[15px] font-sans tracking-widest uppercase border-b-2 border-black pb-0.5 inline-block">
+              {ayarlar.formKodu || 'EK-9'}
+            </span>
+          </div>
+
+          <div>
+            {/* BAŞLIK: ÜÇÜNCÜ ŞAHISLAR TARAFINDAN VERİLECEK MUVAFAKATNAME ÖRNEĞİ */}
+            <div className="text-center my-6">
+              <h1 className="text-[14px] sm:text-[15px] font-extrabold uppercase font-sans tracking-wide">
+                {baslik || 'ÜÇÜNCÜ ŞAHISLAR TARAFINDAN VERİLECEK MUVAFAKATNAME ÖRNEĞİ'}
+              </h1>
+            </div>
+
+            {/* HİTAP MAKAMI */}
+            <div className="text-center font-bold text-[13px] tracking-wide my-8 uppercase font-sans">
+              <div>{ilMudurlugu}NE</div>
+              {sgkMerkezi ? (
+                <div className="text-[12px] font-semibold text-slate-800 mt-1">({sgkMerkezi}ne)</div>
+              ) : (
+                <div className="text-[12px] font-semibold text-slate-800 mt-1">(Sosyal Güvenlik Merkezine)</div>
+              )}
+            </div>
+
+            {/* YASAL METİN (SGK 2024/12 GENELGE METNİ) */}
+            <div className={`text-justify leading-relaxed font-serif my-6 space-y-4 ${fontSizeClass}`}>
+              <p className="indent-10 text-justify" style={{ textAlign: 'justify', textJustify: 'inter-word' }}>
+                <strong className="font-sans font-bold">{asilBorcluAdi}</strong>’nin Sosyal Güvenlik Kurumuna olan{' '}
+                <strong className="font-sans font-bold">{borcDonemi}</strong> dönemi/ayına ilişkin{' '}
+                <strong className="font-sans font-bold">{borcTutari}</strong> tutarında prim ve idari para cezası borcuna ve bu borca bu tarihten ödenmesine kadar geçecek süre için işleyecek fer'ilerine karşılık aşağıda özellikleri yazılı menkul/gayrimenkul malı 6183 sayılı Kanunun 10 uncu maddesinin beşinci fıkrası gereğince teminat olarak gösteriyor ve söz konusu malların Sosyal Güvenlik Kurumu tarafından haczedilmesine muvafakat ediyorum. Bu konuda herhangi bir itirazda bulunmayacağımı beyan ve taahhüt ederim.
+              </p>
+
+              {ekNotlar && (
+                <p className="indent-10 text-[11px] font-sans italic text-slate-800">
+                  Ek Not: {ekNotlar}
+                </p>
+              )}
+            </div>
+
+            {/* TARİH */}
+            <div className="text-right my-5 font-sans text-[12px] font-bold">
+              Tarih: {belgeTarihi}
+            </div>
+
+            {/* MUVAFAKAT VEREN BİLGİLERİ */}
+            <div className="my-6 space-y-1.5 font-sans text-[12px]">
+              <div>
+                <strong>Adı Soyadı / Unvanı:</strong>{' '}
+                <span className="font-bold">{borclu.adSoyad || '………………………………………………………………'}</span>
+              </div>
+              <div>
+                <strong>Adres:</strong>{' '}
+                <span>{borclu.adres || '…………………………………………………………………………………………………………………………'}</span>
+              </div>
+              <div>
+                <strong>T.C. Kimlik No / Vergi Kimlik No:</strong>{' '}
+                <span className="font-mono font-bold">{borclu.tcknVkn || '………………………………'}</span>
+              </div>
+              {borclu.telefon && (
+                <div>
+                  <strong>Telefon:</strong> <span>{borclu.telefon}</span>
+                </div>
+              )}
+              <div className="pt-2">
+                <strong>İmza:</strong>
+              </div>
+            </div>
+
+            {/* TEMİNAT OLARAK GÖSTERİLEN MALIN BİLGİLERİ */}
+            {ayarlar.teminatTablosuGoster && (
+              <div className="my-6 pt-4 border-t border-slate-400">
+                <div className="font-bold text-[11.5px] uppercase font-sans mb-2 text-center underline">
+                  AŞAĞIDA ÖZELLİKLERİ YAZILI MENKUL / GAYRİMENKUL MALIN BİLGİLERİ
+                </div>
+
+                {teminat.tur === 'gayrimenkul' && (
+                  <div className="border border-black p-3 font-sans text-[11px] space-y-1 bg-slate-50/50">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><strong>İli / İlçesi:</strong> {teminat.il || '—'} / {teminat.ilce || '—'}</div>
+                      <div><strong>Mahalle / Köy:</strong> {teminat.mahalleKoy || '—'}</div>
+                      <div><strong>Ada / Parsel No:</strong> Ada: {teminat.ada || '—'} / Parsel: {teminat.parsel || '—'}</div>
+                      <div><strong>Bağımsız Bölüm:</strong> {teminat.bagimsizBolum || '—'}</div>
+                      <div><strong>Yüzölçümü &amp; Niteliği:</strong> {teminat.yuzolcumu || '—'} ({teminat.nitelik || '—'})</div>
+                      <div><strong>Malik / Hisse:</strong> {teminat.tapuMaliki || borclu.adSoyad} ({teminat.hisseOrani || '1/1'})</div>
+                    </div>
+                  </div>
+                )}
+
+                {teminat.tur === 'tasit' && (
+                  <div className="border border-black p-3 font-sans text-[11px] space-y-1 bg-slate-50/50">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><strong>Plaka No:</strong> <span className="font-mono font-bold">{teminat.plaka || '—'}</span></div>
+                      <div><strong>Marka / Model / Yıl:</strong> {teminat.markaModel || '—'} ({teminat.modelYili || '—'})</div>
+                      <div><strong>Araç Cinsi:</strong> {teminat.cinsi || '—'}</div>
+                      <div><strong>Ruhsat Sahibi:</strong> {teminat.ruhsatSahibi || borclu.adSoyad}</div>
+                      <div><strong>Şasi No:</strong> <span className="font-mono">{teminat.sasiNo || '—'}</span></div>
+                      <div><strong>Motor No:</strong> <span className="font-mono">{teminat.motorNo || '—'}</span></div>
+                    </div>
+                  </div>
+                )}
+
+                {teminat.tur === 'banka' && (
+                  <div className="border border-black p-3 font-sans text-[11px] space-y-1 bg-slate-50/50">
+                    <div><strong>Banka Adı:</strong> {teminat.bankaAdi || '—'}</div>
+                    <div><strong>Hesap / IBAN No:</strong> {teminat.iban || teminat.hesapNo || '—'}</div>
+                    <div><strong>Tutar:</strong> {teminat.alacakTutari || borcTutari}</div>
+                  </div>
+                )}
+
+                {teminat.tur === 'maas' && (
+                  <div className="border border-black p-3 font-sans text-[11px] space-y-1 bg-slate-50/50">
+                    <div><strong>Çalıştığı İşyeri:</strong> {teminat.calistigiYer || '—'}</div>
+                    <div><strong>Net Ücret / Kesinti:</strong> {teminat.aylikNetUcret || '—'} / {teminat.kesintiTutariOrani || '—'}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* SGK RESMÎ HUZURDA İMZA ZAPTI */}
+          <div className="mt-8 pt-4 border-t-2 border-black font-sans">
+            <div className="italic text-center text-[11.5px] mb-6">
+              Bu muvafakatname, huzurumuzda imza altına alınmıştır.
+            </div>
+
+            <div className="flex items-start justify-between text-center text-[11px] font-sans px-8">
+              <div className="w-48 space-y-1">
+                <div className="font-bold text-[12px]">İcra Memuru</div>
+                <div className="text-slate-800">{sgkZapti?.icraMemuru?.adSoyad || '…………………………'}</div>
+                <div className="text-[10px] text-slate-600 font-mono">Sicil No: {sgkZapti?.icraMemuru?.sicilNo || '…………'}</div>
+                <div className="h-12 flex items-center justify-center text-[10px] text-slate-400 italic">
+                  (İmza / Mühür)
+                </div>
+              </div>
+
+              <div className="w-48 space-y-1">
+                <div className="font-bold text-[12px]">Sorumlu İcra Memuru</div>
+                <div className="text-slate-800">{sgkZapti?.sorumluMemur?.adSoyad || '…………………………'}</div>
+                <div className="text-[10px] text-slate-600 font-mono">Sicil No: {sgkZapti?.sorumluMemur?.sicilNo || '…………'}</div>
+                <div className="h-12 flex items-center justify-center text-[10px] text-slate-400 italic">
+                  (İmza / Mühür)
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // 2. TABLOLU & MODERN RESMÎ FORMAT
+  // -------------------------------------------------------------
+  const paragraflar = (metin || '').split('\n\n').filter((p) => p.trim().length > 0);
 
   return (
     <div className="w-full flex justify-center py-2 sm:py-4 overflow-auto">
-      {/* A4 Kağıt Konteyneri (210mm x 297mm oranlı) */}
       <div
         id="muvafakatname-a4-print"
         className={`w-[210mm] min-h-[297mm] bg-white text-slate-900 p-[16mm] sm:p-[20mm] shadow-2xl rounded-sm print:shadow-none print:m-0 print:p-[14mm] print:w-full print:min-h-0 flex flex-col justify-between ${fontFamClass} relative border border-slate-300 print:border-none`}
-        style={{
-          boxSizing: 'border-box',
-          color: '#0f172a',
-        }}
+        style={{ boxSizing: 'border-box', color: '#0f172a' }}
       >
-        {/* ÜST SAĞ KÖŞE: RESMÎ EK-9 ETİKETİ */}
+        {/* ÜST SAĞ: EK-9 ROZETİ */}
         {ayarlar.formKoduGoster && (
           <div className="absolute top-[12mm] right-[16mm] sm:right-[20mm] print:top-[10mm] print:right-[14mm]">
             <div className="border-2 border-black px-3.5 py-1 text-center bg-white">
@@ -43,12 +217,11 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
           </div>
         )}
 
-        {/* ÜST BÖLÜM: ANTET, AMBLEM VE KURUM BİLGİSİ */}
+        {/* ANTET */}
         <div>
           {ayarlar.antetVarMi && (
             <div className="pb-3 border-b-2 border-black/90">
               <div className="flex items-center justify-between">
-                {/* Sol Logo / Amblem */}
                 <div className="w-16 h-16 flex items-center justify-start shrink-0">
                   {ayarlar.amblemTuru === 'tc' && (
                     <TCAyYildizEmblem className="w-14 h-14 text-red-700 print:text-black" />
@@ -61,7 +234,6 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
                   )}
                 </div>
 
-                {/* Orta Resmî Antet */}
                 <div className="text-center flex-1 px-2">
                   <div className="font-black text-[14px] sm:text-[15px] tracking-wider uppercase font-sans text-slate-950">
                     {ayarlar.kurumAdi || 'T.C. SOSYAL GÜVENLİK KURUMU BAŞKANLIĞI'}
@@ -73,14 +245,13 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
                   )}
                 </div>
 
-                {/* Sağ Boşluk (EK-9 rozeti için simetrik denge) */}
                 <div className="w-16 shrink-0" />
               </div>
             </div>
           )}
 
-          {/* EVRAK BİLGİ SATIRI (Dosya No, Konu, Tarih) */}
-          <div className="my-3.5 flex items-start justify-between text-[10.5px] font-sans border-b border-slate-300 pb-2">
+          {/* EVRAK BİLGİ SATIRI */}
+          <div className="my-3 flex items-start justify-between text-[10.5px] font-sans border-b border-slate-300 pb-2">
             <div className="space-y-0.5">
               {ayarlar.dosyaNo && (
                 <div>
@@ -99,7 +270,7 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
               {ayarlar.tarihGoster && (
                 <div>
                   <span className="font-bold text-slate-800">Tarih:</span>{' '}
-                  <span className="font-mono">{ayarlar.evrakTarihi || new Date().toLocaleDateString('tr-TR')}</span>
+                  <span className="font-mono">{belgeTarihi}</span>
                 </div>
               )}
               {ayarlar.evrakSayisi && (
@@ -111,31 +282,23 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
             </div>
           </div>
 
-          {/* RESMÎ BELGE BAŞLIĞI */}
-          <div className="text-center my-4">
-            <h1 className="text-[14px] sm:text-[15px] font-black tracking-wide uppercase font-sans border-b-2 border-black inline-block pb-1">
+          {/* BELGE BAŞLIĞI */}
+          <div className="text-center my-3.5">
+            <h1 className="text-[14px] sm:text-[15px] font-black tracking-wide uppercase font-sans border-b-2 border-black inline-block pb-0.5">
               {baslik || 'EK-9: ÜÇÜNCÜ ŞAHISLAR TARAFINDAN VERİLECEK MUVAFAKATNAME ÖRNEĞİ'}
             </h1>
           </div>
 
           {/* HİTAP MAKAMI */}
-          <div className="text-center font-extrabold text-[12px] sm:text-[12.5px] tracking-wider mb-4 uppercase font-sans">
-            {ayarlar.altBirimAdi ? (
-              <>
-                <div>{ayarlar.altBirimAdi.split('/')[0]?.trim()}NE</div>
-                {ayarlar.altBirimAdi.includes('/') && (
-                  <div className="text-[11px] font-bold text-slate-700 mt-0.5">
-                    ({ayarlar.altBirimAdi.split('/')[1]?.trim()}ne)
-                  </div>
-                )}
-              </>
-            ) : (
-              <div>{ayarlar.kurumAdi ? `${ayarlar.kurumAdi} MAKAMINA` : 'İLGİLİ SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜNE'}</div>
+          <div className="text-center font-extrabold text-[12px] sm:text-[12.5px] tracking-wider mb-3.5 uppercase font-sans">
+            <div>{ilMudurlugu}NE</div>
+            {sgkMerkezi && (
+              <div className="text-[11px] font-bold text-slate-700 mt-0.5">({sgkMerkezi}ne)</div>
             )}
           </div>
 
           {/* BORÇLU & MUVAFAKAT VEREN BİLGİ TABLOSU */}
-          <div className="mb-4 border border-black text-[10px] font-sans">
+          <div className="mb-3.5 border border-black text-[10px] font-sans">
             <table className="w-full border-collapse">
               <tbody>
                 <tr className="border-b border-black">
@@ -197,12 +360,11 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
 
           {/* TEMİNAT / MAL BİLGİLERİ TABLOSU */}
           {ayarlar.teminatTablosuGoster && (
-            <div className="mb-4 border border-black text-[10px] font-sans">
-              <div className="bg-slate-200 text-center font-bold py-1 border-b border-black tracking-wider text-[10.5px]">
+            <div className="mb-3.5 border border-black text-[10px] font-sans">
+              <div className="bg-slate-200 text-center font-bold py-1 border-b border-black tracking-wider text-[10px]">
                 TEMİNAT OLARAK GÖSTERİLEN VE HACZEDİLMESİNE MUVAFAKAT EDİLEN MAL / HAK BİLGİLERİ
               </div>
 
-              {/* Taşınmaz Formatı */}
               {teminat.tur === 'gayrimenkul' && (
                 <table className="w-full border-collapse">
                   <tbody>
@@ -228,7 +390,6 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
                 </table>
               )}
 
-              {/* Taşıt Formatı */}
               {teminat.tur === 'tasit' && (
                 <table className="w-full border-collapse">
                   <tbody>
@@ -254,7 +415,6 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
                 </table>
               )}
 
-              {/* Banka Formatı */}
               {teminat.tur === 'banka' && (
                 <table className="w-full border-collapse">
                   <tbody>
@@ -272,7 +432,6 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
                 </table>
               )}
 
-              {/* Maaş Formatı */}
               {teminat.tur === 'maas' && (
                 <table className="w-full border-collapse">
                   <tbody>
@@ -289,18 +448,11 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
                   </tbody>
                 </table>
               )}
-
-              {/* Diğer / Açıklama */}
-              {teminat.tur === 'diger' && teminat.aciklama && (
-                <div className="p-2 text-[10.5px]">
-                  {teminat.aciklama}
-                </div>
-              )}
             </div>
           )}
 
-          {/* GÖVDE METNİ (EK-9 YASAL TAAHHÜT BEYANI) */}
-          <div className={`space-y-3 text-justify ${fontSizeClass}`}>
+          {/* GÖVDE METNİ */}
+          <div className={`space-y-2.5 text-justify ${fontSizeClass}`}>
             {paragraflar.map((paragraf, idx) => (
               <p
                 key={idx}
@@ -312,18 +464,16 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
             ))}
 
             {ekNotlar && (
-              <div className="mt-2.5 p-2 bg-slate-100 border-l-4 border-slate-800 text-[10px] font-sans">
+              <div className="mt-2 p-2 bg-slate-100 border-l-4 border-slate-800 text-[10px] font-sans">
                 <strong>Ek Açıklama &amp; Özel Hüküm:</strong> {ekNotlar}
               </div>
             )}
           </div>
         </div>
 
-        {/* ALT BÖLÜM: İMZA BLOKLARI VE SGK HUZURDA İMZA ZAPTI */}
-        <div className="mt-8 pt-2">
-          {/* İMZALAR */}
+        {/* İMZALAR VE SGK ZAPTI */}
+        <div className="mt-6 pt-2">
           <div className="flex items-start justify-between gap-6 text-center font-sans">
-            {/* 1. İmza: Muvafakat Veren */}
             <div className="flex-1 space-y-0.5">
               <div className="text-[10px] font-bold text-slate-700 uppercase">
                 {imzalayan1.unvan || 'Muvafakat Veren (3. Şahıs / Borçlu)'}
@@ -331,15 +481,14 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
               <div className="font-extrabold text-[11.5px] text-slate-900">
                 {imzalayan1.adSoyad || borclu.adSoyad}
               </div>
-              <div className="text-[9.5px] text-slate-600">
-                Tarih: {ayarlar.evrakTarihi || new Date().toLocaleDateString('tr-TR')}
+              <div className="text-[9px] text-slate-600">
+                Tarih: {belgeTarihi}
               </div>
-              <div className="h-14 flex items-center justify-center text-[10px] text-slate-400 italic">
+              <div className="h-12 flex items-center justify-center text-[10px] text-slate-400 italic">
                 (İmza)
               </div>
             </div>
 
-            {/* 2. İmza: Asıl Borçlu / Kefil / Onay Makamı */}
             {ayarlar.ikinciImzaVarMi && (
               <div className="flex-1 space-y-0.5">
                 <div className="text-[10px] font-bold text-slate-700 uppercase">
@@ -348,31 +497,31 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
                 <div className="font-extrabold text-[11.5px] text-slate-900">
                   {imzalayan2?.adSoyad || asilBorclu?.unvan || 'Yetkili İmza'}
                 </div>
-                <div className="text-[9.5px] text-slate-600">
+                <div className="text-[9px] text-slate-600">
                   (Kaşe / Mühür)
                 </div>
-                <div className="h-14 flex items-center justify-center text-[10px] text-slate-400 italic">
+                <div className="h-12 flex items-center justify-center text-[10px] text-slate-400 italic">
                   (İmza / Resmî Mühür)
                 </div>
               </div>
             )}
           </div>
 
-          {/* SGK RESMÎ HUZURDA İMZA ZAPTI (SGK 2024/12 GENELGESİ STANDARDI) */}
+          {/* SGK RESMÎ HUZURDA İMZA ZAPTI */}
           {ayarlar.huzurdaImzaZaptiVarMi && (
-            <div className="mt-5 border border-black p-2.5 bg-slate-50 text-[9.5px] font-sans">
+            <div className="mt-4 border border-black p-2.5 bg-slate-50 text-[9.5px] font-sans">
               <div className="text-center font-bold uppercase tracking-wider mb-1 text-[10px] border-b border-black/40 pb-0.5">
                 T.C. SOSYAL GÜVENLİK KURUMU HUZURDA İMZA VE TESPİT ZAPTI
               </div>
               <div className="text-justify leading-snug">
                 İşbu <strong>EK-9 Muvafakatnamesi</strong>; muvafakat veren <strong>{borclu.adSoyad}</strong> (T.C./Vergi No: {borclu.tcknVkn}) tarafından huzurumuzda kendi hür iradesi ile tanzim ve imza altına alınmış olup, kimlik tespiti yapılmak suretiyle teslim alınmıştır.
               </div>
-              <div className="mt-3 flex items-start justify-between text-center pt-1">
+              <div className="mt-2.5 flex items-start justify-between text-center pt-1">
                 <div className="flex-1">
                   <div className="font-bold text-[10px]">İcra Memuru</div>
                   <div className="text-[9px] text-slate-700">{sgkZapti?.icraMemuru?.adSoyad || 'İcra Memuru'}</div>
                   <div className="text-[8.5px] text-slate-500 font-mono">Sicil: {sgkZapti?.icraMemuru?.sicilNo || '—'}</div>
-                  <div className="h-8 flex items-center justify-center text-[8.5px] text-slate-400 italic">
+                  <div className="h-7 flex items-center justify-center text-[8.5px] text-slate-400 italic">
                     (İmza / Resmî Mühür)
                   </div>
                 </div>
@@ -381,7 +530,7 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
                   <div className="font-bold text-[10px]">Sorumlu İcra Memuru / Şef</div>
                   <div className="text-[9px] text-slate-700">{sgkZapti?.sorumluMemur?.adSoyad || 'Sorumlu Şef / Yetkili'}</div>
                   <div className="text-[8.5px] text-slate-500 font-mono">Sicil: {sgkZapti?.sorumluMemur?.sicilNo || '—'}</div>
-                  <div className="h-8 flex items-center justify-center text-[8.5px] text-slate-400 italic">
+                  <div className="h-7 flex items-center justify-center text-[8.5px] text-slate-400 italic">
                     (İmza / Resmî Mühür)
                   </div>
                 </div>
@@ -389,8 +538,7 @@ export const A4Document: React.FC<A4DocumentProps> = ({ data }) => {
             </div>
           )}
 
-          {/* DİPNOT VE MEVZUAT DAYANAĞI */}
-          <div className="mt-4 pt-2 border-t border-slate-300 flex items-center justify-between text-[8.5px] font-sans text-slate-500">
+          <div className="mt-3 pt-1.5 border-t border-slate-300 flex items-center justify-between text-[8.5px] font-sans text-slate-500">
             <div>
               SGK 2024/12 Sayılı Genelgesi Ek-9 ve 6183 Sayılı Kanun m. 10/5 hükümlerine göre tanzim edilmiştir.
             </div>

@@ -70,6 +70,7 @@ export const MuvafakatnameModal: React.FC<MuvafakatnameModalProps> = ({
       ikinciImzaVarMi: true,
       huzurdaImzaZaptiVarMi: true,
       teminatTablosuGoster: true,
+      sayfaFormati: 'genelge_matbu',
     },
     borclu: {
       sifat: 'ucuncu_sahis',
@@ -319,6 +320,40 @@ ${documentData.borclu.adSoyad} (${documentData.borclu.tcknVkn})
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>A4 Önizle</span>
+                </button>
+              </div>
+
+              {/* Sayfa Formatı Seçici (Genelge vs Tablolu) */}
+              <div className="hidden md:inline-flex p-1 rounded-xl border bg-slate-100 dark:bg-slate-800" style={{ borderColor: 'var(--border-primary)' }}>
+                <button
+                  type="button"
+                  onClick={() => setDocumentData((prev) => ({
+                    ...prev,
+                    ayarlar: { ...prev.ayarlar, sayfaFormati: 'genelge_matbu' },
+                  }))}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                    documentData.ayarlar.sayfaFormati === 'genelge_matbu'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                  }`}
+                  title="SGK 2024/12 Genelgesi EK-9 Orijinal Metin Formatı"
+                >
+                  Resmî Genelge
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDocumentData((prev) => ({
+                    ...prev,
+                    ayarlar: { ...prev.ayarlar, sayfaFormati: 'tablolu_modern' },
+                  }))}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                    documentData.ayarlar.sayfaFormati === 'tablolu_modern'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                  }`}
+                  title="Detaylı Yapılandırılmış Tablo Formatı"
+                >
+                  Tablolu
                 </button>
               </div>
 

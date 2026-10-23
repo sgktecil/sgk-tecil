@@ -103,6 +103,7 @@ export interface BelgeAyarlari {
   ikinciImzaVarMi: boolean;
   huzurdaImzaZaptiVarMi: boolean;
   teminatTablosuGoster: boolean;
+  sayfaFormati: 'genelge_matbu' | 'tablolu_modern';
 }
 
 export interface SGKIcraMemurlari {

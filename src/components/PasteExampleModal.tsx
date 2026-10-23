@@ -71,6 +71,7 @@ export const PasteExampleModal: React.FC<PasteExampleModalProps> = ({
           ikinciImzaVarMi: true,
           huzurdaImzaZaptiVarMi: true,
           teminatTablosuGoster: true,
+          sayfaFormati: 'genelge_matbu',
         },
         borclu: {
           sifat: 'ucuncu_sahis',
@@ -146,6 +147,7 @@ Bu konuda herhangi bir itirazda bulunmayacağımı bila-kaydü şart gayrikabili
           ikinciImzaVarMi: true,
           huzurdaImzaZaptiVarMi: true,
           teminatTablosuGoster: true,
+          sayfaFormati: 'genelge_matbu',
         },
         borclu: {
           sifat: 'borclu',
@@ -204,6 +206,7 @@ Bu konuda herhangi bir itirazda bulunmayacağımı bila-kaydü şart gayrikabili
           ikinciImzaVarMi: true,
           huzurdaImzaZaptiVarMi: false,
           teminatTablosuGoster: true,
+          sayfaFormati: 'genelge_matbu',
         },
         borclu: {
           sifat: 'borclu',
@@ -248,6 +251,7 @@ Bu konuda herhangi bir itirazda bulunmayacağımı bila-kaydü şart gayrikabili
           ikinciImzaVarMi: true,
           huzurdaImzaZaptiVarMi: false,
           teminatTablosuGoster: false,
+          sayfaFormati: 'genelge_matbu',
         },
       },
     },
