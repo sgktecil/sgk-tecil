@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { X, Globe, Lock, ShieldCheck, Power, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { X, Globe, Lock, ShieldCheck, Power, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface SiteStatusModalProps {
   isOpen: boolean;
   onClose: () => void;
   isSiteOpen: boolean;
-  onToggleSiteStatus: (isOpen: boolean) => void;
+  onToggleSiteStatus: (isOpen: boolean) => Promise<void> | void;
 }
 
 export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
@@ -14,7 +14,19 @@ export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
   isSiteOpen,
   onToggleSiteStatus,
 }) => {
+  const [isUpdating, setIsUpdating] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleToggle = async (targetOpen: boolean) => {
+    setIsUpdating(true);
+    try {
+      await onToggleSiteStatus(targetOpen);
+    } finally {
+      setIsUpdating(false);
+      onClose();
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
@@ -37,7 +49,7 @@ export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
                 Canlı Yayın &amp; Erişim Durumu
               </h3>
               <p className="text-[11px] text-slate-500">
-                Siteyi istediğiniz an yayına açabilir veya kapatabilirsiniz
+                Tüm ziyaretçiler için anında geçerli olur (Sunucu Senkronlu)
               </p>
             </div>
           </div>
@@ -67,7 +79,7 @@ export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
           <p className="text-xs leading-relaxed">
             {isSiteOpen
               ? 'Web sitesi şu anda tüm kullanıcılara açıktır. Hesaplama ve belge düzenleme modülleri aktiftir.'
-              : 'Web sitesi şu anda ziyaretçilere kapalıdır. Siteye girenler bakım ekranı ile karşılaşır.'}
+              : 'Web sitesi şu anda tüm ziyaretçilere kapalıdır. Siteye canlı linkten giren herkes SGK bakım ekranı ile karşılaşır.'}
           </p>
         </div>
 
@@ -76,26 +88,22 @@ export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
           {isSiteOpen ? (
             <button
               type="button"
-              onClick={() => {
-                onToggleSiteStatus(false);
-                onClose();
-              }}
-              className="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+              disabled={isUpdating}
+              onClick={() => handleToggle(false)}
+              className="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
             >
-              <Lock className="w-4 h-4" />
-              <span>Siteyi Kapat (Bakım Moduna Al)</span>
+              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+              <span>{isUpdating ? 'Sunucu Güncelleniyor...' : 'Siteyi Kapat (Bakım Moduna Al)'}</span>
             </button>
           ) : (
             <button
               type="button"
-              onClick={() => {
-                onToggleSiteStatus(true);
-                onClose();
-              }}
-              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+              disabled={isUpdating}
+              onClick={() => handleToggle(true)}
+              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
             >
-              <Globe className="w-4 h-4" />
-              <span>Siteyi Canlıya Aç (Yayına Al)</span>
+              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+              <span>{isUpdating ? 'Sunucu Güncelleniyor...' : 'Siteyi Canlıya Aç (Yayına Al)'}</span>
             </button>
           )}
 

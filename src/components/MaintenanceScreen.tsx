@@ -13,7 +13,7 @@ export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({ onUnlockSi
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Kabul edilen şifreler: 1923, 6183, admin, veya boş bırakılsa dahi kolaylık için onay
+    // Kabul edilen şifreler: 1923, 6183, admin, 1234
     if (pin === '1923' || pin === '6183' || pin.toLowerCase() === 'admin' || pin === '1234') {
       onUnlockSite();
     } else {
@@ -21,6 +21,18 @@ export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({ onUnlockSi
       setTimeout(() => setError(false), 2500);
     }
   };
+
+  // Alt + K kısayolu bakım ekranında da yönetici panelini açar
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.altKey && (e.key === 'k' || e.key === 'K')) || (e.ctrlKey && e.shiftKey && (e.key === 'a' || e.key === 'A'))) {
+        e.preventDefault();
+        setShowAdminPin((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center justify-between p-4 sm:p-8 font-sans relative overflow-hidden">

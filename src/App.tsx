@@ -33,6 +33,7 @@ import {
   Lock
 } from 'lucide-react';
 import { safeStorage } from './utils/storage';
+import { fetchSiteStatus, updateSiteStatus } from './utils/siteStatusService';
 
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark' | 'amoled'>(() => {
@@ -76,16 +77,46 @@ export default function App() {
   const [taksitFormuOpen, setTaksitFormuOpen] = useState(false);
   const [muvafakatnameOpen, setMuvafakatnameOpen] = useState(false);
 
-  // Canlı Yayın (Açık / Kapalı) Durumu
+  // Canlı Yayın (Açık / Kapalı) Durumu - Varsayılan kapalı (kullanıcı kapattığı için)
   const [isSiteOpen, setIsSiteOpen] = useState<boolean>(() => {
-    const saved = safeStorage.getItem('sgk_site_canli_durumu', 'acik');
-    return saved !== 'kapali';
+    const saved = safeStorage.getItem('sgk_site_canli_durumu', 'kapali');
+    return saved === 'acik';
   });
   const [siteStatusModalOpen, setSiteStatusModalOpen] = useState(false);
 
-  const handleToggleSiteStatus = (open: boolean) => {
+  // Sunucudan site durumunu ilk yüklemede ve periyodik olarak sorgula
+  useEffect(() => {
+    let isMounted = true;
+    const syncStatus = async () => {
+      const open = await fetchSiteStatus();
+      if (isMounted) {
+        setIsSiteOpen(open);
+      }
+    };
+
+    // İlk açılışta hemen sunucuya sor
+    syncStatus();
+
+    // 4 saniyede bir ve sekme aktifleşince durumu senkronize et
+    const interval = setInterval(syncStatus, 4000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncStatus();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
+
+  const handleToggleSiteStatus = async (open: boolean) => {
     setIsSiteOpen(open);
-    safeStorage.setItem('sgk_site_canli_durumu', open ? 'acik' : 'kapali');
+    await updateSiteStatus(open);
+    showToast(open ? 'Site canlıya açıldı. Tüm ziyaretçiler artık erişebilir.' : 'Site kapatıldı. Ziyaretçiler artık bakım ekranını görecek.');
   };
 
   // Sadece yöneticinin bildiği gizli kısayol: Alt + K veya Ctrl + Shift + A
@@ -357,7 +388,17 @@ export default function App() {
   const isletmeOrani = iBorc > 0 ? (iKasa + iBanka + iAlacak) / iBorc : 0;
 
   if (!isSiteOpen) {
-    return <MaintenanceScreen onUnlockSite={() => handleToggleSiteStatus(true)} />;
+    return (
+      <>
+        <MaintenanceScreen onUnlockSite={() => handleToggleSiteStatus(true)} />
+        <SiteStatusModal
+          isOpen={siteStatusModalOpen}
+          onClose={() => setSiteStatusModalOpen(false)}
+          isSiteOpen={isSiteOpen}
+          onToggleSiteStatus={handleToggleSiteStatus}
+        />
+      </>
+    );
   }
 
   return (
