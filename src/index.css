@@ -319,6 +319,27 @@ html:not(.dark) .border-slate-500\/15 {
     color: #000000 !important;
   }
 
+  /* When printing the official Muvafakatname document, hide everything else */
+  body.body-printing-muvafakatname header,
+  body.body-printing-muvafakatname nav,
+  body.body-printing-muvafakatname aside,
+  body.body-printing-muvafakatname footer,
+  body.body-printing-muvafakatname main,
+  body.body-printing-muvafakatname .no-print,
+  body.body-printing-muvafakatname [data-no-print="true"] {
+    display: none !important;
+  }
+
+  body.body-printing-muvafakatname #muvafakatname-a4-print {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 15mm 20mm !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    page-break-inside: avoid !important;
+  }
+
   /* Form ön yüz (Sayfa 1): Kesinlikle 1 tam A4 sayfasına sığdır, 2. sayfaya taşmasını önle */
   #form-print-page-1 {
     page-break-after: always !important;

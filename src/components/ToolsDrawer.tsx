@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   FileText,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  FileSignature
 } from 'lucide-react';
 import { INITIAL_BANKALAR } from '../data/bankalar';
 import { KNOWLEDGE_BASE } from '../data/knowledge';
@@ -28,6 +29,7 @@ interface ToolsDrawerProps {
   onClose: () => void;
   activeSection: 'maasTab' | 'bankaTab' | 'tebligatTab' | 'bilgiTab';
   drawerTitle: string;
+  onOpenMuvafakatname?: () => void;
 }
 
 export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
@@ -35,6 +37,7 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
   onClose,
   activeSection,
   drawerTitle,
+  onOpenMuvafakatname,
 }) => {
   const [currentTab, setCurrentTab] = useState<'maasTab' | 'bankaTab' | 'tebligatTab' | 'bilgiTab'>(
     activeSection
@@ -220,6 +223,21 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
             <BookOpen className="w-3.5 h-3.5" />
             <span>Bilgi Portalı</span>
           </button>
+
+          {onOpenMuvafakatname && (
+            <button
+              type="button"
+              onClick={() => {
+                onOpenMuvafakatname();
+                onClose();
+              }}
+              className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 border border-rose-500/30 font-bold shrink-0 cursor-pointer ml-auto"
+              title="Resmî Muvafakatname ve Belge Düzenleyiciyi A4 Formatında Aç"
+            >
+              <FileSignature className="w-3.5 h-3.5 text-rose-600" />
+              <span>Muvafakatname (A4)</span>
+            </button>
+          )}
         </div>
 
         {/* Content Area */}

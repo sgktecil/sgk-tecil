@@ -10,18 +10,22 @@ import {
   Moon,
   Sparkles,
   Check,
-  Palette
+  Palette,
+  FileSignature
 } from 'lucide-react';
 
 interface HeaderProps {
   onOpenDrawer: (sectionId: 'maasTab' | 'bankaTab' | 'tebligatTab' | 'bilgiTab', title: string) => void;
   onOpenTaksitFormu?: () => void;
+  onOpenMuvafakatname?: () => void;
   theme: 'light' | 'dark' | 'amoled';
   onSelectTheme: (theme: 'light' | 'dark' | 'amoled') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenDrawer,
+  onOpenTaksitFormu,
+  onOpenMuvafakatname,
   theme = 'light',
   onSelectTheme,
 }) => {
@@ -259,6 +263,31 @@ export const Header: React.FC<HeaderProps> = ({
                 color: 'var(--text-primary)',
               }}
             >
+              {/* Resmî Muvafakatname ve Belge Düzenleyici */}
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenMuvafakatname?.();
+                  setToolsOpen(false);
+                }}
+                className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-500/10 transition-colors text-left cursor-pointer border border-rose-500/30 bg-rose-500/10 mb-1.5"
+              >
+                <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400">
+                  <FileSignature className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <span>Muvafakatname &amp; Belge</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-600 text-white font-black">
+                      A4
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                    Resmî muvafakat ve izin belgeleri
+                  </div>
+                </div>
+              </button>
+
               <button
                 onClick={() => {
                   onOpenDrawer('maasTab', '⚖️ Maaş Haczi Hesaplama');

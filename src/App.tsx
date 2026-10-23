@@ -5,6 +5,7 @@ import { TaksitTablosu } from './components/TaksitTablosu';
 import { VadeKarsilastirma } from './components/VadeKarsilastirma';
 import { TaksitFormuModal } from './components/TaksitFormuModal';
 import { DonemBorcDokumu } from './components/DonemBorcDokumu';
+import { MuvafakatnameModal } from './components/MuvafakatnameModal';
 import {
   formatTL,
   parseTL,
@@ -70,6 +71,7 @@ export default function App() {
 
   // Taksit Formu Modal state
   const [taksitFormuOpen, setTaksitFormuOpen] = useState(false);
+  const [muvafakatnameOpen, setMuvafakatnameOpen] = useState(false);
 
   // Form Inputs
   const [borcInput, setBorcInput] = useState('12.000.000,00');
@@ -335,6 +337,7 @@ export default function App() {
       {/* Header & Tools Navbar */}
       <Header
         onOpenDrawer={openDrawer}
+        onOpenMuvafakatname={() => setMuvafakatnameOpen(true)}
         theme={theme}
         onSelectTheme={(t) => setTheme(t)}
       />
@@ -920,6 +923,14 @@ export default function App() {
         onClose={() => setDrawerOpen(false)}
         activeSection={drawerTab}
         drawerTitle={drawerTitle}
+        onOpenMuvafakatname={() => setMuvafakatnameOpen(true)}
+      />
+
+      {/* Resmî Muvafakatname ve Belge Düzenleyici Modalı */}
+      <MuvafakatnameModal
+        isOpen={muvafakatnameOpen}
+        onClose={() => setMuvafakatnameOpen(false)}
+        initialBorrower={borcluInfo}
       />
     </div>
   );
