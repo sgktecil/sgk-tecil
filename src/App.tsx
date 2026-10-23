@@ -29,7 +29,8 @@ import {
   Scale,
   CheckCircle2,
   AlertTriangle,
-  FileText
+  FileText,
+  Lock
 } from 'lucide-react';
 import { safeStorage } from './utils/storage';
 
@@ -86,6 +87,21 @@ export default function App() {
     setIsSiteOpen(open);
     safeStorage.setItem('sgk_site_canli_durumu', open ? 'acik' : 'kapali');
   };
+
+  // Sadece yöneticinin bildiği gizli kısayol: Alt + K veya Ctrl + Shift + A
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.altKey && (e.key === 'k' || e.key === 'K')) ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a'))
+      ) {
+        e.preventDefault();
+        setSiteStatusModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Form Inputs
   const [borcInput, setBorcInput] = useState('12.000.000,00');
@@ -936,6 +952,26 @@ export default function App() {
           </section>
         )}
       </main>
+
+      {/* Kurumsal Alt Bilgi ve Gizli Yönetici Tetikleyicisi */}
+      <footer className="mt-auto py-5 border-t text-center text-xs text-slate-500 no-print" style={{ borderColor: 'var(--border-primary)' }}>
+        <div className="max-w-6xl mx-auto px-4 flex items-center justify-between flex-wrap gap-2 text-[11px]">
+          <span>Sosyal Güvenlik Kurumu 6183/48 Takip ve Tecil Taksitlendirme Portalı</span>
+          <div className="flex items-center gap-2 text-slate-400">
+            <span>© {new Date().getFullYear()}</span>
+            {/* Ziyaretçilerin farketmeyeceği şeffaf yönetici butonu */}
+            <button
+              type="button"
+              onClick={() => setSiteStatusModalOpen(true)}
+              className="opacity-25 hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-teal-500 cursor-pointer"
+              title="Yönetici (Alt + K)"
+              aria-label="Yönetici Paneli"
+            >
+              <Lock className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      </footer>
 
       {/* Tools Drawer */}
       <ToolsDrawer

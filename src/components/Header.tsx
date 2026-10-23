@@ -92,23 +92,6 @@ export const Header: React.FC<HeaderProps> = ({
     <>
       {/* Floating Toolbar (Top-Right) */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-2 no-print">
-        {/* Canlı Yayın Durumu Butonu (Açık / Kapalı) */}
-        {onOpenSiteStatusModal && (
-          <button
-            type="button"
-            onClick={onOpenSiteStatusModal}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-full shadow-lg border transition-all duration-200 cursor-pointer hover:scale-[1.02] ${
-              isSiteOpen
-                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30'
-            }`}
-            title="Site Canlı Yayın Durumu (Açık / Kapalı ayarlamak için tıklayın)"
-          >
-            <span className={`w-2 h-2 rounded-full ${isSiteOpen ? 'bg-emerald-500' : 'bg-rose-500 animate-ping'}`} />
-            <span>{isSiteOpen ? 'Canlı: Açık' : 'Canlı: Kapalı'}</span>
-          </button>
-        )}
-
         {/* Tema Seçim Menüsü */}
         <div className="relative" ref={themeRef}>
           <button
@@ -309,32 +292,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </button>
 
-              {/* Canlı Yayın Açık/Kapalı Ayarı */}
-              {onOpenSiteStatusModal && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenSiteStatusModal();
-                    setToolsOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-500/10 transition-colors text-left cursor-pointer border border-slate-300 dark:border-slate-700 mb-1.5"
-                >
-                  <div className={`p-1.5 rounded-lg ${isSiteOpen ? 'bg-emerald-500/15 text-emerald-600' : 'bg-rose-500/15 text-rose-600'}`}>
-                    <span className={`w-3 h-3 rounded-full block ${isSiteOpen ? 'bg-emerald-500' : 'bg-rose-500 animate-ping'}`} />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                      <span>Canlı Durumu: {isSiteOpen ? 'Açık' : 'Kapalı'}</span>
-                      <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${isSiteOpen ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
-                        {isSiteOpen ? 'Yayında' : 'Bakımda'}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
-                      Siteyi tek tıkla aç veya kapat
-                    </div>
-                  </div>
-                </button>
-              )}
+
 
               <button
                 onClick={() => {
