@@ -6,6 +6,8 @@ import { VadeKarsilastirma } from './components/VadeKarsilastirma';
 import { TaksitFormuModal } from './components/TaksitFormuModal';
 import { DonemBorcDokumu } from './components/DonemBorcDokumu';
 import { MuvafakatnameModal } from './components/MuvafakatnameModal';
+import { SiteStatusModal } from './components/SiteStatusModal';
+import { MaintenanceScreen } from './components/MaintenanceScreen';
 import {
   formatTL,
   parseTL,
@@ -72,6 +74,18 @@ export default function App() {
   // Taksit Formu Modal state
   const [taksitFormuOpen, setTaksitFormuOpen] = useState(false);
   const [muvafakatnameOpen, setMuvafakatnameOpen] = useState(false);
+
+  // Canlı Yayın (Açık / Kapalı) Durumu
+  const [isSiteOpen, setIsSiteOpen] = useState<boolean>(() => {
+    const saved = safeStorage.getItem('sgk_site_canli_durumu', 'acik');
+    return saved !== 'kapali';
+  });
+  const [siteStatusModalOpen, setSiteStatusModalOpen] = useState(false);
+
+  const handleToggleSiteStatus = (open: boolean) => {
+    setIsSiteOpen(open);
+    safeStorage.setItem('sgk_site_canli_durumu', open ? 'acik' : 'kapali');
+  };
 
   // Form Inputs
   const [borcInput, setBorcInput] = useState('12.000.000,00');
@@ -326,6 +340,10 @@ export default function App() {
   const iBorc = parseTL(isletmeBorclar);
   const isletmeOrani = iBorc > 0 ? (iKasa + iBanka + iAlacak) / iBorc : 0;
 
+  if (!isSiteOpen) {
+    return <MaintenanceScreen onUnlockSite={() => handleToggleSiteStatus(true)} />;
+  }
+
   return (
     <div
       className="min-h-screen flex flex-col antialiased selection:bg-teal-500 selection:text-white text-slate-900 dark:text-slate-100"
@@ -340,6 +358,8 @@ export default function App() {
         onOpenMuvafakatname={() => setMuvafakatnameOpen(true)}
         theme={theme}
         onSelectTheme={(t) => setTheme(t)}
+        isSiteOpen={isSiteOpen}
+        onOpenSiteStatusModal={() => setSiteStatusModalOpen(true)}
       />
 
       {/* Main Container */}
@@ -931,6 +951,14 @@ export default function App() {
         isOpen={muvafakatnameOpen}
         onClose={() => setMuvafakatnameOpen(false)}
         initialBorrower={borcluInfo}
+      />
+
+      {/* Site Canlı Durumu (Açık / Kapalı) Ayar Modalı */}
+      <SiteStatusModal
+        isOpen={siteStatusModalOpen}
+        onClose={() => setSiteStatusModalOpen(false)}
+        isSiteOpen={isSiteOpen}
+        onToggleSiteStatus={handleToggleSiteStatus}
       />
     </div>
   );

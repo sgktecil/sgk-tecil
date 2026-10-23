@@ -287,12 +287,12 @@ ${documentData.borclu.adSoyad} (${documentData.borclu.tcknVkn})
                   <h2 className="text-lg font-bold tracking-tight text-slate-800 dark:text-slate-100">
                     Resmî Muvafakatname ve EK-9 Belge Düzenleyici
                   </h2>
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full font-black uppercase bg-teal-500/15 text-teal-800 dark:text-teal-300 border border-teal-500/30">
-                    SGK 2024/12 EK-9
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-full font-black uppercase bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                    EK-9 (Deneme Aşamasında)
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 font-medium">
-                  SGK 6183/10-5 EK-9 3. şahıs muvafakatnamesi, borçlu taşınmaz/araç teminatı, maaş haczi ve taahhüt belgeleri
+                  SGK 2024/12 EK-9 3. şahıs muvafakatnamesi ve resmî tecil belgeleri
                 </p>
               </div>
             </div>
@@ -320,40 +320,6 @@ ${documentData.borclu.adSoyad} (${documentData.borclu.tcknVkn})
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>A4 Önizle</span>
-                </button>
-              </div>
-
-              {/* Sayfa Formatı Seçici (Genelge vs Tablolu) */}
-              <div className="hidden md:inline-flex p-1 rounded-xl border bg-slate-100 dark:bg-slate-800" style={{ borderColor: 'var(--border-primary)' }}>
-                <button
-                  type="button"
-                  onClick={() => setDocumentData((prev) => ({
-                    ...prev,
-                    ayarlar: { ...prev.ayarlar, sayfaFormati: 'genelge_matbu' },
-                  }))}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                    documentData.ayarlar.sayfaFormati === 'genelge_matbu'
-                      ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                  }`}
-                  title="SGK 2024/12 Genelgesi EK-9 Orijinal Metin Formatı"
-                >
-                  Resmî Genelge
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDocumentData((prev) => ({
-                    ...prev,
-                    ayarlar: { ...prev.ayarlar, sayfaFormati: 'tablolu_modern' },
-                  }))}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                    documentData.ayarlar.sayfaFormati === 'tablolu_modern'
-                      ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                  }`}
-                  title="Detaylı Yapılandırılmış Tablo Formatı"
-                >
-                  Tablolu
                 </button>
               </div>
 

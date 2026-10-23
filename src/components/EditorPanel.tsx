@@ -103,61 +103,28 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
   return (
     <div className="space-y-4 text-xs">
-      {/* HIZLI AKSİYONLAR VE FORMAT SEÇİMİ */}
+      {/* HIZLI AKSİYONLAR */}
       <div
-        className="p-3 rounded-2xl border space-y-2.5"
+        className="p-3 rounded-2xl border flex items-center justify-between gap-2"
         style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-primary)' }}
       >
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={onOpenPasteModal}
-            className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Hazır Örnekler &amp; Word İçe Aktar</span>
-          </button>
+        <button
+          type="button"
+          onClick={onOpenPasteModal}
+          className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Hazır Örnekler &amp; Word İçe Aktar</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={onLoadSampleBorrower}
-            className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1 cursor-pointer"
-            title="Aktif SGK borçlu bilgilerini bu forma otomatik aktar"
-          >
-            <span>SGK Borçlusunu Yansıt</span>
-          </button>
-        </div>
-
-        {/* Format Seçimi: Genelge vs Tablolu */}
-        <div className="pt-2 border-t flex items-center gap-1.5" style={{ borderColor: 'var(--border-primary)' }}>
-          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 shrink-0">
-            A4 Sayfa Düzeni:
-          </span>
-          <div className="grid grid-cols-2 gap-1 flex-1">
-            <button
-              type="button"
-              onClick={() => updateAyarlar({ sayfaFormati: 'genelge_matbu' })}
-              className={`py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer text-center ${
-                ayarlar.sayfaFormati === 'genelge_matbu'
-                  ? 'bg-teal-600 text-white shadow-xs'
-                  : 'bg-slate-500/10 hover:bg-slate-500/20 text-slate-700 dark:text-slate-300'
-              }`}
-            >
-              SGK Genelge Formatı
-            </button>
-            <button
-              type="button"
-              onClick={() => updateAyarlar({ sayfaFormati: 'tablolu_modern' })}
-              className={`py-1 px-2 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer text-center ${
-                ayarlar.sayfaFormati === 'tablolu_modern'
-                  ? 'bg-teal-600 text-white shadow-xs'
-                  : 'bg-slate-500/10 hover:bg-slate-500/20 text-slate-700 dark:text-slate-300'
-              }`}
-            >
-              Modern Tablolu Format
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={onLoadSampleBorrower}
+          className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1 cursor-pointer"
+          title="Aktif SGK borçlu bilgilerini bu forma otomatik aktar"
+        >
+          <span>SGK Borçlusunu Yansıt</span>
+        </button>
       </div>
 
       {/* 1. RESMÎ ŞABLON SEÇİMİ */}
