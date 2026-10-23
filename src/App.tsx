@@ -84,16 +84,20 @@ export default function App() {
   });
   const [siteStatusModalOpen, setSiteStatusModalOpen] = useState(false);
 
-  // Geliştirici çalışma ortamı tespiti (bu ortamda rahatça çalışabilmeniz için)
+  // Geliştirici çalışma ortamı tespiti (bu önizleme penceresinde rahatça çalışabilmeniz için)
   const isDevHost = typeof window !== 'undefined' && (
     window.location.hostname.includes('-dev-') ||
     window.location.hostname === 'localhost' ||
     window.location.hostname === '127.0.0.1'
   );
 
-  // Geliştirici bu ortamda canlı kapalıyken de çalışmaya devam edebilir
-  const [devWorkMode, setDevWorkMode] = useState<boolean>(() => {
-    return isDevHost || safeStorage.getItem('sgk_dev_work_mode', 'true') === 'true';
+  // Canlı bağlantıda (ais-pre-...) PIN ile yönetici girişi yapılmış mı?
+  const [adminUnlockedSession, setAdminUnlockedSession] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('sgk_admin_unlocked') === 'true';
+    } catch {
+      return false;
+    }
   });
   const [previewVisitorView, setPreviewVisitorView] = useState(false);
 
@@ -400,23 +404,33 @@ export default function App() {
   const iBorc = parseTL(isletmeBorclar);
   const isletmeOrani = iBorc > 0 ? (iKasa + iBanka + iAlacak) / iBorc : 0;
 
-  // Eğer site canlıda kapalıysa ve (ziyaretçi ise veya önizleme test ediliyorsa):
-  if (!isSiteOpen && (!devWorkMode || previewVisitorView)) {
+  // Eğer site canlıda kapalıysa:
+  // - Canlı bağlantıdaki (ais-pre-...) tüm harici ziyaretçiler KESİNLİKLE BAKIM EKRANI görür
+  // - Geliştirici çalışma ortamında (ais-dev-...) siz çalışmanıza devam edebilirsiniz
+  const shouldShowMaintenance = !isSiteOpen && (!isDevHost ? !adminUnlockedSession : previewVisitorView);
+
+  if (shouldShowMaintenance) {
     return (
       <>
         <MaintenanceScreen
           onUnlockSite={() => handleToggleSiteStatus(true)}
-          onContinueDevelopment={() => {
-            setDevWorkMode(true);
-            setPreviewVisitorView(false);
-            safeStorage.setItem('sgk_dev_work_mode', 'true');
-          }}
+          onContinueDevelopment={
+            isDevHost
+              ? () => setPreviewVisitorView(false)
+              : () => {
+                  setAdminUnlockedSession(true);
+                  try {
+                    sessionStorage.setItem('sgk_admin_unlocked', 'true');
+                  } catch {}
+                }
+          }
         />
         <SiteStatusModal
           isOpen={siteStatusModalOpen}
           onClose={() => setSiteStatusModalOpen(false)}
           isSiteOpen={isSiteOpen}
           onToggleSiteStatus={handleToggleSiteStatus}
+          onPreviewMaintenance={() => setPreviewVisitorView(true)}
         />
       </>
     );
