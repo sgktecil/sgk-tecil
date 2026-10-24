@@ -17,7 +17,8 @@ import {
   Save,
   CheckCircle2,
   FileSignature,
-  ChevronDown
+  ChevronDown,
+  Info
 } from 'lucide-react';
 import { INITIAL_BANKALAR } from '../data/bankalar';
 import { KNOWLEDGE_BASE } from '../data/knowledge';
@@ -111,19 +112,68 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
   };
 
   // -------------------------------------------------------------
-  // 1. MAAŞ HACZİ HESAPLAMA STATE
+  // 1. MAAŞ HACZİ HESAPLAMA STATE (6183 S.K. Md. 71 & Değişken Asgari Ücret)
   // -------------------------------------------------------------
+  const [asgariUcretInput, setAsgariUcretInput] = useState(() => {
+    return safeStorage.getItem('sgk_asgari_ucret', '28.000,75');
+  });
   const [maasInput, setMaasInput] = useState('30.000,00');
-  const [kesintiOrani, setKesintiOrani] = useState<'1/4' | '1/10' | '1/3'>('1/4');
   const [ekGelir, setEkGelir] = useState('0,00');
+  const [asgariUstuSecim, setAsgariUstuSecim] = useState<'1/4' | '1/3'>('1/4');
+  const [maasCopied, setMaasCopied] = useState(false);
 
   const maasNum = parseFloat(maasInput.replace(/\./g, '').replace(',', '.')) || 0;
   const ekGelirNum = parseFloat(ekGelir.replace(/\./g, '').replace(',', '.')) || 0;
+  const asgariUcretNum = parseFloat(asgariUcretInput.replace(/\./g, '').replace(',', '.')) || 28000.75;
   const toplamNetGelir = maasNum + ekGelirNum;
 
-  const oranBolen = kesintiOrani === '1/4' ? 4 : kesintiOrani === '1/10' ? 10 : 3;
-  const aylikKesintiTutari = toplamNetGelir / oranBolen;
-  const kalanMaas = toplamNetGelir - aylikKesintiTutari;
+  // 6183 S.K. Md. 71 değerlendirmesi: Gelir asgari ücret veya altında mı?
+  const isAsgariUcretAltiVeyaEsit = toplamNetGelir <= asgariUcretNum;
+
+  // 1/10 Kesintisi (Asgari ücret ve altı için kanuni azami kesinti)
+  const kesinti10 = Math.round((toplamNetGelir / 10) * 100) / 100;
+  const kalan10 = Math.round((toplamNetGelir - kesinti10) * 100) / 100;
+
+  // 1/4 Kesintisi (Asgari ücret üstü için standart tavsiye edilen kesinti - İİK 83)
+  const kesinti4 = Math.round((toplamNetGelir / 4) * 100) / 100;
+  const kalan4 = Math.round((toplamNetGelir - kesinti4) * 100) / 100;
+
+  // 1/3 Kesintisi (Asgari ücret üstü için kanuni üst tavan - 6183 Md. 71)
+  const kesinti3 = Math.round((toplamNetGelir / 3) * 100) / 100;
+  const kalan3 = Math.round((toplamNetGelir - kesinti3) * 100) / 100;
+
+  // Nihai seçilen/uygulanan kesinti ve borçluya kalan maaş
+  const aktifKesintiTutari = isAsgariUcretAltiVeyaEsit
+    ? kesinti10
+    : asgariUstuSecim === '1/3'
+    ? kesinti3
+    : kesinti4;
+
+  const aktifKalanMaas = Math.round((toplamNetGelir - aktifKesintiTutari) * 100) / 100;
+
+  const handleAsgariUcretChange = (val: string) => {
+    setAsgariUcretInput(val);
+    safeStorage.setItem('sgk_asgari_ucret', val);
+  };
+
+  const handleCopyMaasSonuc = () => {
+    const text = `
+6183 SAYILI KANUN MD. 71 & İİK MD. 83 MAAŞ HACZİ KESİNTİ HESAPLAMASI
+-----------------------------------------------------------------
+• Dikkate Alınan Net Asgari Ücret: ${formatTL(asgariUcretNum)} TL
+• Borçlunun Aylık Net Maaşı       : ${formatTL(maasNum)} TL
+${ekGelirNum > 0 ? `• Ek Gelir / İkramiye / Prim      : ${formatTL(ekGelirNum)} TL\n` : ''}• Toplam Net Aylık Gelir          : ${formatTL(toplamNetGelir)} TL
+• Hukuki Durum                    : ${isAsgariUcretAltiVeyaEsit ? 'Asgari Ücret ve Altında (Azami 1/10 Kesinti Zorunlu)' : `Asgari Ücretin Üzerinde (${asgariUstuSecim} Kesinti Seçildi)`}
+• Haczedilecek Aylık Kesinti Tutarı: ${formatTL(aktifKesintiTutari)} TL (${isAsgariUcretAltiVeyaEsit ? '1/10' : asgariUstuSecim})
+• Borçluya Bırakılacak Kalan Maaş : ${formatTL(aktifKalanMaas)} TL
+-----------------------------------------------------------------
+Yasal Dayanak: 6183 S.K. Md. 71 uyarınca asgari ücreti aşmayan gelir için 1/10'dan az, aşan kısım için 1/3'ten çok haciz yapılamaz.
+    `.trim();
+
+    navigator.clipboard.writeText(text);
+    setMaasCopied(true);
+    setTimeout(() => setMaasCopied(false), 2000);
+  };
 
   // -------------------------------------------------------------
   // 2. BANKA REHBERİ STATE
@@ -336,83 +386,244 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
           {/* 1. MAAŞ HACZİ                                                  */}
           {/* ============================================================== */}
           {currentTab === 'maasTab' && (
-            <div className="space-y-5">
-              <div className="p-4 rounded-2xl border space-y-4" style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-primary)' }}>
-                <div className="font-bold text-sm text-indigo-700 dark:text-indigo-400 flex items-center gap-2">
-                  <Scale className="w-4 h-4" />
-                  <span>İİK Md. 83 &amp; 6183 Md. 71 Maaş Haczi Kesintisi</span>
+            <div className="space-y-4">
+              {/* Main Inputs Card */}
+              <div
+                className="p-4 sm:p-5 rounded-2xl border space-y-4 shadow-xs"
+                style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-primary)' }}
+              >
+                <div className="flex items-center justify-between gap-2 border-b pb-3" style={{ borderColor: 'var(--border-primary)' }}>
+                  <div className="font-bold text-sm text-indigo-700 dark:text-indigo-400 flex items-center gap-2">
+                    <Scale className="w-4 h-4" />
+                    <span>6183 S.K. Md. 71 &amp; İİK Md. 83 Maaş Haczi Hesaplama</span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                    Otomatik Yasal Kural
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] font-bold block mb-1">Aylık Net Maaş / Ücret (TL):</label>
-                    <input
-                      type="text"
-                      value={maasInput}
-                      onChange={(e) => setMaasInput(e.target.value)}
-                      className="form-control-custom font-mono font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-bold block mb-1">Ek Gelir / İkramiye / Prim (TL):</label>
-                    <input
-                      type="text"
-                      value={ekGelir}
-                      onChange={(e) => setEkGelir(e.target.value)}
-                      className="form-control-custom font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold block mb-1.5">Yasal Haciz Kesinti Oranı:</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setKesintiOrani('1/4')}
-                      className={`p-2 rounded-xl border font-bold text-center transition-all ${
-                        kesintiOrani === '1/4' ? 'bg-indigo-600 text-white border-indigo-600' : 'hover:bg-slate-500/10'
-                      }`}
-                    >
-                      1/4 (%25 - Standart İİK)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setKesintiOrani('1/10')}
-                      className={`p-2 rounded-xl border font-bold text-center transition-all ${
-                        kesintiOrani === '1/10' ? 'bg-indigo-600 text-white border-indigo-600' : 'hover:bg-slate-500/10'
-                      }`}
-                    >
-                      1/10 (%10 - Asgari)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setKesintiOrani('1/3')}
-                      className={`p-2 rounded-xl border font-bold text-center transition-all ${
-                        kesintiOrani === '1/3' ? 'bg-indigo-600 text-white border-indigo-600' : 'hover:bg-slate-500/10'
-                      }`}
-                    >
-                      1/3 (%33.3 - Azami)
-                    </button>
-                  </div>
-                </div>
-
-                {/* Sonuç Kartı */}
-                <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 space-y-2">
-                  <div className="flex justify-between items-center text-indigo-900 dark:text-indigo-200">
-                    <span className="font-semibold">Toplam Net Gelir:</span>
-                    <span className="font-mono font-bold text-sm">{formatTL(toplamNetGelir)} ₺</span>
-                  </div>
-                  <div className="flex justify-between items-center text-indigo-900 dark:text-indigo-200 border-t border-indigo-200 dark:border-indigo-900/50 pt-2">
-                    <span className="font-bold text-sm">Haczedilecek Aylık Kesinti ({kesintiOrani}):</span>
-                    <span className="font-mono font-black text-base text-indigo-600 dark:text-indigo-400">
-                      {formatTL(aylikKesintiTutari)} ₺
+                {/* 1. ASGARİ ÜCRET GİRİŞ ALANI (Kullanıcı istediği zaman güncelleyebilir) */}
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-[11px] font-extrabold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                      <span>📌 Yürürlükteki Net Asgari Ücret (TL):</span>
+                    </label>
+                    <span className="text-[10px] text-amber-700 dark:text-amber-300 font-semibold hidden sm:inline">
+                      (Değişken — dilediğiniz gibi güncelleyebilirsiniz)
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-500 pt-1">
-                    <span>Borçluya Kalan Tutar:</span>
-                    <span className="font-mono font-semibold">{formatTL(kalanMaas)} ₺</span>
+
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={asgariUcretInput}
+                        onChange={(e) => handleAsgariUcretChange(e.target.value)}
+                        onBlur={() => {
+                          const num = parseFloat(asgariUcretInput.replace(/\./g, '').replace(',', '.')) || 0;
+                          if (num > 0) handleAsgariUcretChange(formatTL(num));
+                        }}
+                        placeholder="28.000,75"
+                        className="form-control-custom font-mono font-bold text-amber-900 dark:text-amber-100 bg-white dark:bg-stone-900 pr-8"
+                      />
+                      <span className="absolute right-3 top-2.5 text-stone-400 font-bold text-xs pointer-events-none">₺</span>
+                    </div>
+
+                    {/* Hızlı Hazır Değer Butonları */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleAsgariUcretChange('28.000,75')}
+                        className="px-2 py-1.5 rounded-lg border text-[10px] font-bold bg-white dark:bg-stone-900 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100/60 cursor-pointer transition-colors"
+                        title="2026 Net Asgari Ücreti (28.000,75 TL)"
+                      >
+                        28.000,75 ₺
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAsgariUcretChange('30.000,00')}
+                        className="px-2 py-1.5 rounded-lg border text-[10px] font-bold bg-white dark:bg-stone-900 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100/60 cursor-pointer transition-colors"
+                        title="30.000,00 TL"
+                      >
+                        30.000 ₺
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+                    Sistem borçlunun aylık gelirini bu tutarla kıyaslayarak kanunen <strong>1/10</strong> mu yoksa <strong>1/4 - 1/3</strong> kuralının mı uygulanacağını otomatik belirler.
+                  </p>
+                </div>
+
+                {/* 2. MAAŞ VE EK GELİR GİRİŞLERİ */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold block mb-1">Borçlunun Aylık Net Maaşı (TL) *</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={maasInput}
+                        onChange={(e) => setMaasInput(e.target.value)}
+                        onBlur={() => {
+                          const num = parseFloat(maasInput.replace(/\./g, '').replace(',', '.')) || 0;
+                          if (num > 0) setMaasInput(formatTL(num));
+                        }}
+                        placeholder="0,00"
+                        className="form-control-custom font-mono font-bold pr-8"
+                      />
+                      <span className="absolute right-3 top-2.5 text-stone-400 font-bold text-xs pointer-events-none">₺</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold block mb-1">Ek Gelir / İkramiye / Prim (TL)</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={ekGelir}
+                        onChange={(e) => setEkGelir(e.target.value)}
+                        onBlur={() => {
+                          const num = parseFloat(ekGelir.replace(/\./g, '').replace(',', '.')) || 0;
+                          setEkGelir(formatTL(num));
+                        }}
+                        placeholder="0,00"
+                        className="form-control-custom font-mono pr-8"
+                      />
+                      <span className="absolute right-3 top-2.5 text-stone-400 font-bold text-xs pointer-events-none">₺</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. DİNAMİK SONUÇ KARTLARI (Html dosyasındaki gibi akıllı tespit) */}
+                {toplamNetGelir > 0 && (
+                  <div className="space-y-3 pt-2 border-t" style={{ borderColor: 'var(--border-primary)' }}>
+                    {isAsgariUcretAltiVeyaEsit ? (
+                      /* DURUM 1: Maaş <= Asgari Ücret -> 1/10 Kuralı Zorunlu */
+                      <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500/60 text-emerald-950 dark:text-emerald-100 space-y-2.5 shadow-2xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-extrabold text-sm text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            <span>✅ 1/10 Kuralı Uygulanır (Asgari Ücret ve Altı)</span>
+                          </div>
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-200/80 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200">
+                            6183 S.K. Md. 71
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-emerald-900/90 dark:text-emerald-200 leading-relaxed">
+                          Toplam aylık net gelir (<strong>{formatTL(toplamNetGelir)} TL</strong>), belirlenen asgari ücretin (<strong>{formatTL(asgariUcretNum)} TL</strong>) altında veya eşit olduğundan kanunen azami kesinti oranı <strong>1/10 (%10)</strong> ile sınırlandırılmıştır.
+                        </p>
+
+                        <div className="pt-2 border-t border-emerald-300/60 dark:border-emerald-800/60 flex flex-wrap items-baseline justify-between gap-2">
+                          <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                            Maksimum Yasal Kesinti (1/10):
+                          </span>
+                          <span className="font-mono font-black text-xl text-emerald-700 dark:text-emerald-300">
+                            {formatTL(kesinti10)} TL
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[11px] text-emerald-800/80 dark:text-emerald-300/80 pt-0.5">
+                          <span>Borçluya Bırakılacak Kalan Maaş:</span>
+                          <span className="font-mono font-bold text-xs">{formatTL(kalan10)} TL</span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* DURUM 2: Maaş > Asgari Ücret -> 1/4 Standart & 1/3 Azami Sınır */
+                      <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-500/50 text-blue-950 dark:text-blue-100 space-y-3 shadow-2xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-extrabold text-sm text-blue-800 dark:text-blue-300 flex items-center gap-1.5">
+                            <Info className="w-4 h-4 text-blue-600" />
+                            <span>ℹ️ Asgari Ücret Üstü Gelir</span>
+                          </div>
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-200/80 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200">
+                            İİK 83 &amp; 6183 Md. 71
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-blue-900/90 dark:text-blue-200 leading-relaxed">
+                          Toplam aylık net gelir (<strong>{formatTL(toplamNetGelir)} TL</strong>), asgari ücretin (<strong>{formatTL(asgariUcretNum)} TL</strong>) üzerindedir. Kanunen standart tavsiye edilen kesinti <strong>1/4 (%25)</strong>, yasal azami üst tavan ise <strong>1/3 (%33.33)</strong>'tür.
+                        </p>
+
+                        {/* Seçim Butonları */}
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setAsgariUstuSecim('1/4')}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              asgariUstuSecim === '1/4'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                : 'bg-white dark:bg-stone-900 border-blue-200 dark:border-blue-800 hover:bg-blue-100/50 text-stone-800 dark:text-stone-200'
+                            }`}
+                          >
+                            <div className="text-[10px] font-bold uppercase opacity-80">Standart Öneri</div>
+                            <div className="text-xs font-extrabold">1/4 Kesinti (%25)</div>
+                            <div className="font-mono font-black text-sm mt-0.5">{formatTL(kesinti4)} ₺</div>
+                            <div className="text-[10px] opacity-75 mt-0.5">Kalan: {formatTL(kalan4)} ₺</div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setAsgariUstuSecim('1/3')}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              asgariUstuSecim === '1/3'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                : 'bg-white dark:bg-stone-900 border-blue-200 dark:border-blue-800 hover:bg-blue-100/50 text-stone-800 dark:text-stone-200'
+                            }`}
+                          >
+                            <div className="text-[10px] font-bold uppercase opacity-80">Yasal Üst Tavan</div>
+                            <div className="text-xs font-extrabold">1/3 Kesinti (%33.3)</div>
+                            <div className="font-mono font-black text-sm mt-0.5">{formatTL(kesinti3)} ₺</div>
+                            <div className="text-[10px] opacity-75 mt-0.5">Kalan: {formatTL(kalan3)} ₺</div>
+                          </button>
+                        </div>
+
+                        <div className="pt-2 border-t border-blue-200 dark:border-blue-800 flex justify-between items-baseline">
+                          <span className="text-xs font-bold text-blue-900 dark:text-blue-200">
+                            Uygulanacak Kesinti ({asgariUstuSecim}):
+                          </span>
+                          <span className="font-mono font-black text-xl text-blue-700 dark:text-blue-300">
+                            {formatTL(aktifKesintiTutari)} TL
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[11px] text-blue-800/80 dark:text-blue-300/80">
+                          <span>Borçluya Kalan Tutar:</span>
+                          <span className="font-mono font-bold text-xs">{formatTL(aktifKalanMaas)} TL</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Kopyala Butonu */}
+                    <button
+                      type="button"
+                      onClick={handleCopyMaasSonuc}
+                      className="w-full py-2.5 px-4 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-750 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
+                    >
+                      {maasCopied ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-600" />
+                          <span className="text-emerald-700 font-bold">Maaş Haczi Bilgisi Kopyalandı!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4 text-stone-500" />
+                          <span>Haciz Hesap Sonucunu Kopyala</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* 4. YASAL MEVZUAT BİLGİLENDİRME NOTU (Html dosyasındaki gibi) */}
+                <div className="p-3 rounded-xl bg-stone-100 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700/60 space-y-1 text-[11px] text-stone-600 dark:text-stone-300">
+                  <div className="font-bold text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
+                    <span>📚 6183 S.K. Md. 71 &amp; İİK Md. 83 Yasal Dayanak:</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    6183 sayılı Kanun m. 71 uyarınca borçlunun maaş ve ücretleri kısmen haczedilebilir. Ancak haczolunacak miktar <strong>asgari ücreti aşmayan kısım için 1/10'dan az olamaz</strong>. Gelir asgari ücreti aştığında ise İİK Md. 83 uyarınca <strong>1/4 standart</strong>, 6183 Md. 71 uyarınca <strong>1/3 yasal üst sınır</strong> kabul edilir.
+                  </p>
+                  <div className="pt-1 text-[10px] text-stone-500 dark:text-stone-400 font-medium">
+                    Aktif dikkate alınan asgari ücret: <span className="font-mono font-bold text-stone-700 dark:text-stone-300">{formatTL(asgariUcretNum)} TL</span>
                   </div>
                 </div>
               </div>
