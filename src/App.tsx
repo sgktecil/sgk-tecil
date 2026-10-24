@@ -1029,11 +1029,14 @@ export default function App() {
         )}
       </main>
 
-      {/* Kurumsal Alt Bilgi ve Gizli Yönetici Tetikleyicisi */}
-      <footer className="mt-auto py-5 border-t text-center text-xs text-slate-500 no-print" style={{ borderColor: 'var(--border-primary)' }}>
-        <div className="max-w-6xl mx-auto px-4 flex items-center justify-between flex-wrap gap-2 text-[11px]">
-          <span>Sosyal Güvenlik Kurumu 6183/48 Takip ve Tecil Taksitlendirme Portalı</span>
-          <div className="flex items-center gap-2 text-slate-400">
+      {/* Kurumsal Alt Bilgi, Yasal Sorumluluk Reddi ve Gizli Yönetici Tetikleyicisi */}
+      <footer className="mt-auto py-5 border-t text-xs text-slate-500 no-print" style={{ borderColor: 'var(--border-primary)' }}>
+        <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] leading-relaxed">
+          <p className="text-slate-500 dark:text-slate-400 text-left max-w-4xl">
+            <strong className="text-slate-700 dark:text-slate-300 font-bold">Yasal Sorumluluk Reddi:</strong>{' '}
+            Bu programın kullanımı tamamen kullanıcının kendi sorumluluğundadır. Program sağlayıcıları; doğruluk, eksiksizlik, güncellik veya belirli bir amaca uygunluk konusunda hiçbir garanti vermemektedir. Kullanıcı, yürürlükteki mevzuata uymakla ve programın kullanımından doğabilecek tüm sorumluluğu kabul etmekle yükümlüdür. Program üzerinden sunulan içerikler hukuki, mali veya profesyonel danışmanlık niteliği taşımaz.
+          </p>
+          <div className="flex items-center gap-2.5 text-slate-400 shrink-0 self-end md:self-center">
             {/* Canlı durumu göstergesi (Sadece site kapalıyken footerda zarifçe yer alır) */}
             {!isSiteOpen && (
               <button
@@ -1046,7 +1049,7 @@ export default function App() {
                 <span>Canlı: Kapalı</span>
               </button>
             )}
-            <span>© {new Date().getFullYear()}</span>
+            <span className="font-mono">© {new Date().getFullYear()}</span>
             {/* Ziyaretçilerin farketmeyeceği şeffaf yönetici butonu */}
             <button
               type="button"
