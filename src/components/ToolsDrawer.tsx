@@ -118,14 +118,12 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
     return safeStorage.getItem('sgk_asgari_ucret', '28.000,75');
   });
   const [maasInput, setMaasInput] = useState('30.000,00');
-  const [ekGelir, setEkGelir] = useState('0,00');
   const [asgariUstuSecim, setAsgariUstuSecim] = useState<'1/4' | '1/3'>('1/4');
   const [maasCopied, setMaasCopied] = useState(false);
 
   const maasNum = parseFloat(maasInput.replace(/\./g, '').replace(',', '.')) || 0;
-  const ekGelirNum = parseFloat(ekGelir.replace(/\./g, '').replace(',', '.')) || 0;
   const asgariUcretNum = parseFloat(asgariUcretInput.replace(/\./g, '').replace(',', '.')) || 28000.75;
-  const toplamNetGelir = maasNum + ekGelirNum;
+  const toplamNetGelir = maasNum;
 
   // 6183 S.K. Md. 71 değerlendirmesi: Gelir asgari ücret veya altında mı?
   const isAsgariUcretAltiVeyaEsit = toplamNetGelir <= asgariUcretNum;
@@ -162,7 +160,6 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
 -----------------------------------------------------------------
 • Dikkate Alınan Net Asgari Ücret: ${formatTL(asgariUcretNum)} TL
 • Borçlunun Aylık Net Maaşı       : ${formatTL(maasNum)} TL
-${ekGelirNum > 0 ? `• Ek Gelir / İkramiye / Prim      : ${formatTL(ekGelirNum)} TL\n` : ''}• Toplam Net Aylık Gelir          : ${formatTL(toplamNetGelir)} TL
 • Hukuki Durum                    : ${isAsgariUcretAltiVeyaEsit ? 'Asgari Ücret ve Altında (Azami 1/10 Kesinti Zorunlu)' : `Asgari Ücretin Üzerinde (${asgariUstuSecim} Kesinti Seçildi)`}
 • Haczedilecek Aylık Kesinti Tutarı: ${formatTL(aktifKesintiTutari)} TL (${isAsgariUcretAltiVeyaEsit ? '1/10' : asgariUstuSecim})
 • Borçluya Bırakılacak Kalan Maaş : ${formatTL(aktifKalanMaas)} TL
@@ -455,41 +452,22 @@ Yasal Dayanak: 6183 S.K. Md. 71 uyarınca asgari ücreti aşmayan gelir için 1/
                 </div>
 
                 {/* 2. MAAŞ VE EK GELİR GİRİŞLERİ */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] font-bold block mb-1">Borçlunun Aylık Net Maaşı (TL) *</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={maasInput}
-                        onChange={(e) => setMaasInput(e.target.value)}
-                        onBlur={() => {
-                          const num = parseFloat(maasInput.replace(/\./g, '').replace(',', '.')) || 0;
-                          if (num > 0) setMaasInput(formatTL(num));
-                        }}
-                        placeholder="0,00"
-                        className="form-control-custom font-mono font-bold pr-8"
-                      />
-                      <span className="absolute right-3 top-2.5 text-stone-400 font-bold text-xs pointer-events-none">₺</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-bold block mb-1">Ek Gelir / İkramiye / Prim (TL)</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={ekGelir}
-                        onChange={(e) => setEkGelir(e.target.value)}
-                        onBlur={() => {
-                          const num = parseFloat(ekGelir.replace(/\./g, '').replace(',', '.')) || 0;
-                          setEkGelir(formatTL(num));
-                        }}
-                        placeholder="0,00"
-                        className="form-control-custom font-mono pr-8"
-                      />
-                      <span className="absolute right-3 top-2.5 text-stone-400 font-bold text-xs pointer-events-none">₺</span>
-                    </div>
+                {/* 2. MAAŞ GİRİŞİ */}
+                <div>
+                  <label className="text-[11px] font-bold block mb-1">Borçlunun Aylık Net Maaşı (TL) *</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={maasInput}
+                      onChange={(e) => setMaasInput(e.target.value)}
+                      onBlur={() => {
+                        const num = parseFloat(maasInput.replace(/\./g, '').replace(',', '.')) || 0;
+                        if (num > 0) setMaasInput(formatTL(num));
+                      }}
+                      placeholder="0,00"
+                      className="form-control-custom font-mono font-bold text-sm pr-8"
+                    />
+                    <span className="absolute right-3 top-2.5 text-stone-400 font-bold text-xs pointer-events-none">₺</span>
                   </div>
                 </div>
 
