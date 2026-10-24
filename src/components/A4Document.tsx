@@ -487,28 +487,43 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                       disabled={!isWordMode}
                       className="text-[10px] font-sans font-bold uppercase tracking-wider text-stone-700 mb-0.5 block cursor-text"
                     />
-                    <InlineEditable
-                      value={doc.date || '..../...../.....'}
-                      onChange={(val) => updateField('date', val)}
-                      disabled={!isWordMode}
-                      className="text-xs font-mono mb-1 block cursor-text"
-                    />
-                    <div className="font-bold text-sm min-h-[20px]">
-                      <InlineEditable
-                        value={doc.grantor.fullName || 'Adı Soyadı'}
-                        onChange={(val) => updateGrantor('fullName', val)}
-                        disabled={!isWordMode}
-                        className="block cursor-text"
-                        placeholder="Adı Soyadı"
+                    <div className="mb-1">
+                      <AnimatedSlot
+                        label="Düzenleme Tarihi"
+                        description="Belgenin imzalandığı güncel tarih"
+                        example="24.10.2026"
+                        placeholder="..../...../....."
+                        value={doc.date || ''}
+                        onConfirm={(val) => updateField('date', val)}
+                        isEditable={isWordMode}
+                        className="font-mono text-xs block"
+                        sentencePreview={(val) => `Tarih: ${val}`}
                       />
                     </div>
-                    <div className="text-xs text-stone-700 mt-0.5">
-                      <InlineEditable
-                        value={doc.grantor.title || 'Malik'}
-                        onChange={(val) => updateGrantor('title', val)}
-                        disabled={!isWordMode}
-                        className="block cursor-text"
+                    <div className="font-bold text-sm min-h-[22px] flex items-center justify-center">
+                      <AnimatedSlot
+                        label="Muvafakat Veren (Malik) Adı Soyadı"
+                        description="Gayrimenkul malikinin tam adı soyadı"
+                        example="Ahmet YILMAZ"
+                        placeholder="Adı Soyadı"
+                        value={doc.grantor.fullName || ''}
+                        onConfirm={(val) => updateGrantor('fullName', val)}
+                        isEditable={isWordMode}
+                        className="font-bold text-sm block"
+                        sentencePreview={(val) => `Malik: ${val}`}
+                      />
+                    </div>
+                    <div className="text-xs text-stone-700 mt-0.5 flex items-center justify-center">
+                      <AnimatedSlot
+                        label="Malik Ünvanı / Sıfatı"
+                        description="Örn: Malik, Hissedar, Kat İrtifak Sahibi"
+                        example="Malik"
                         placeholder="Malik"
+                        value={doc.grantor.title || ''}
+                        onConfirm={(val) => updateGrantor('title', val)}
+                        isEditable={isWordMode}
+                        className="text-xs text-stone-700 block"
+                        sentencePreview={(val) => `Ünvanı: ${val}`}
                       />
                     </div>
                     <div className="h-9 flex items-end justify-center">
@@ -524,29 +539,44 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                       disabled={!isWordMode}
                       className="text-[10px] font-sans font-bold uppercase tracking-wider text-stone-700 mb-0.5 block cursor-text"
                     />
-                    <InlineEditable
-                      value={doc.date || '..../...../.....'}
-                      onChange={(val) => updateField('date', val)}
-                      disabled={!isWordMode}
-                      className="text-xs font-mono mb-1 block cursor-text"
-                    />
-                    <div className="font-bold text-sm min-h-[20px]">
-                      <InlineEditable
-                        value={doc.sgkDetails?.spouseFullName || 'Eşin Adı Soyadı'}
-                        onChange={(val) => updateSgk('spouseFullName', val)}
-                        disabled={!isWordMode}
-                        className="block cursor-text"
+                    <div className="mb-1">
+                      <AnimatedSlot
+                        label="Eş İmza Tarihi"
+                        description="Eşin muvafakatnameyi imzaladığı tarih"
+                        example="24.10.2026"
+                        placeholder="..../...../....."
+                        value={doc.date || ''}
+                        onConfirm={(val) => updateField('date', val)}
+                        isEditable={isWordMode}
+                        className="font-mono text-xs block"
+                        sentencePreview={(val) => `Tarih: ${val}`}
+                      />
+                    </div>
+                    <div className="font-bold text-sm min-h-[22px] flex items-center justify-center">
+                      <AnimatedSlot
+                        label="Malikin Eşi Adı Soyadı"
+                        description="TMK m.194 uyarınca rıza gösteren eşin adı soyadı"
+                        example="Fatma YILMAZ"
                         placeholder="Eşin Adı Soyadı"
+                        value={doc.sgkDetails?.spouseFullName || ''}
+                        onConfirm={(val) => updateSgk('spouseFullName', val)}
+                        isEditable={isWordMode}
+                        className="font-bold text-sm block"
+                        sentencePreview={(val) => `Eş: ${val}`}
                       />
                     </div>
                     <div className="text-xs font-mono text-stone-700 mt-0.5 flex items-center justify-center gap-1">
                       <span>TC:</span>
-                      <InlineEditable
-                        value={doc.sgkDetails?.spouseTcNumber || '................................'}
-                        onChange={(val) => updateSgk('spouseTcNumber', val)}
-                        disabled={!isWordMode}
-                        className="cursor-text"
-                        placeholder="TC Kimlik No"
+                      <AnimatedSlot
+                        label="Malikin Eşi T.C. Kimlik No"
+                        description="Eşin 11 haneli T.C. kimlik numarası"
+                        example="98765432109"
+                        placeholder="................................"
+                        value={doc.sgkDetails?.spouseTcNumber || ''}
+                        onConfirm={(val) => updateSgk('spouseTcNumber', val)}
+                        isEditable={isWordMode}
+                        className="font-mono text-xs"
+                        sentencePreview={(val) => `Eş TC: ${val}`}
                       />
                     </div>
                     <div className="h-9 flex items-end justify-center">
@@ -559,30 +589,42 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                 <div className="flex justify-end pr-4 mb-4">
                   <div className="text-center w-56 font-serif text-stone-950">
                     <div className="mb-2 font-mono">
-                      <InlineEditable
-                        value={doc.date || '..../...../.....'}
-                        onChange={(val) => updateField('date', val)}
-                        disabled={!isWordMode}
-                        className="block cursor-text"
+                      <AnimatedSlot
+                        label="Düzenleme Tarihi"
+                        description="Belgenin imzalandığı güncel tarih"
+                        example="24.10.2026"
                         placeholder="..../...../....."
+                        value={doc.date || ''}
+                        onConfirm={(val) => updateField('date', val)}
+                        isEditable={isWordMode}
+                        className="font-mono text-xs block"
+                        sentencePreview={(val) => `Tarih: ${val}`}
                       />
                     </div>
-                    <div className="font-bold text-sm min-h-[20px]">
-                      <InlineEditable
-                        value={doc.grantor.fullName || 'Adı Soyadı'}
-                        onChange={(val) => updateGrantor('fullName', val)}
-                        disabled={!isWordMode}
-                        className="block cursor-text"
+                    <div className="font-bold text-sm min-h-[22px] flex items-center justify-center">
+                      <AnimatedSlot
+                        label="Muvafakat Veren (Malik) Adı Soyadı"
+                        description="Muvafakat veren malikin adı soyadı"
+                        example="Ahmet YILMAZ"
                         placeholder="Adı Soyadı"
+                        value={doc.grantor.fullName || ''}
+                        onConfirm={(val) => updateGrantor('fullName', val)}
+                        isEditable={isWordMode}
+                        className="font-bold text-sm block"
+                        sentencePreview={(val) => `Malik: ${val}`}
                       />
                     </div>
-                    <div className="text-xs text-stone-700 mt-0.5">
-                      <InlineEditable
-                        value={doc.grantor.title || 'Ünvanı'}
-                        onChange={(val) => updateGrantor('title', val)}
-                        disabled={!isWordMode}
-                        className="block cursor-text"
+                    <div className="text-xs text-stone-700 mt-0.5 flex items-center justify-center">
+                      <AnimatedSlot
+                        label="Ünvanı / Sıfatı"
+                        description="Örn: Malik, Hissedar, Firma Yetkilisi"
+                        example="Malik"
                         placeholder="Ünvanı"
+                        value={doc.grantor.title || ''}
+                        onConfirm={(val) => updateGrantor('title', val)}
+                        isEditable={isWordMode}
+                        className="text-xs text-stone-700 block"
+                        sentencePreview={(val) => `Ünvanı: ${val}`}
                       />
                     </div>
                     <div className="h-10 flex items-end justify-center">
