@@ -316,34 +316,30 @@ Yasal Dayanak: 6183 S.K. Md. 71 uyarınca asgari ücreti aşmayan gelir için 1/
                         Yardımcı Araç Değiştir
                       </div>
 
-                      {(Object.keys(TOOL_CONFIG) as Array<keyof typeof TOOL_CONFIG>).map((key) => {
-                        const t = TOOL_CONFIG[key];
-                        const Icon = t.icon;
-                        const isSelected = currentTab === key;
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => {
-                              setCurrentTab(key);
-                              setSwitcherOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-2.5 p-2 rounded-xl transition-colors text-left cursor-pointer ${
-                              isSelected
-                                ? 'bg-slate-500/15 font-bold text-slate-900 dark:text-white'
-                                : 'hover:bg-slate-500/10 text-slate-700 dark:text-slate-300'
-                            }`}
-                          >
-                            <div className={`p-1.5 rounded-lg border ${t.badgeColor}`}>
-                              <Icon className={`w-3.5 h-3.5 ${t.iconColor}`} />
-                            </div>
-                            <div className="truncate flex-1">
-                              <div className="font-semibold text-xs truncate">{t.title}</div>
-                            </div>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-teal-600 shrink-0" />}
-                          </button>
-                        );
-                      })}
+                      {(Object.keys(TOOL_CONFIG) as Array<keyof typeof TOOL_CONFIG>)
+                        .filter((key) => key !== currentTab)
+                        .map((key) => {
+                          const t = TOOL_CONFIG[key];
+                          const Icon = t.icon;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => {
+                                setCurrentTab(key);
+                                setSwitcherOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2.5 p-2 rounded-xl transition-colors text-left cursor-pointer hover:bg-slate-500/10 text-slate-700 dark:text-slate-300"
+                            >
+                              <div className={`p-1.5 rounded-lg border ${t.badgeColor}`}>
+                                <Icon className={`w-3.5 h-3.5 ${t.iconColor}`} />
+                              </div>
+                              <div className="truncate flex-1">
+                                <div className="font-semibold text-xs truncate">{t.title}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
 
                       {onOpenMuvafakatname && (
                         <div className="pt-1 mt-1 border-t" style={{ borderColor: 'var(--border-primary)' }}>
