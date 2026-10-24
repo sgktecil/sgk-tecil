@@ -133,6 +133,22 @@ export const A4Document: React.FC<A4DocumentProps> = ({
     });
   };
 
+  const updateGrantor2 = (field: string, value: string) => {
+    if (!onChange) return;
+    onChange({
+      ...doc,
+      grantor2: { ...(doc.grantor2 || {}), [field]: value },
+    });
+  };
+
+  const updateGrantee = (field: string, value: string) => {
+    if (!onChange) return;
+    onChange({
+      ...doc,
+      grantee: { ...(doc.grantee || {}), [field]: value },
+    });
+  };
+
   const updateSgk = (field: string, value: any) => {
     if (!onChange) return;
     onChange({
@@ -286,30 +302,44 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                 />
               </div>
 
-              {/* Main Legal Sentence with Animated Spring-Forward Interactive Slots */}
+              {/* Main Legal Sentence with Animated Spring-Forward Interactive Slots & Full Text Editing */}
               <div className="relative group text-justify leading-relaxed text-stone-950 mb-5 font-serif text-[13px] rounded-sm transition-colors">
-                {/* Discreet mode switcher button (hidden on print) */}
+                {/* Mode switcher banner & direct text edit trigger (hidden on print) */}
                 {isWordMode && (
-                  <div className="no-print absolute -top-5 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 z-10">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        updateSgk('useCustomMainSentence', !doc.sgkDetails?.useCustomMainSentence);
-                      }}
-                      className="text-[10px] font-sans font-semibold px-2 py-0.5 rounded bg-stone-900 text-white hover:bg-stone-800 shadow-xs flex items-center gap-1 cursor-pointer"
-                      title={
-                        doc.sgkDetails?.useCustomMainSentence
-                          ? 'Akıllı Boşluk Doldurma Moduna Geç'
-                          : 'Serbest Word Yazma Moduna Geç'
-                      }
-                    >
-                      <Edit3 className="w-2.5 h-2.5 text-amber-300" />
-                      <span>
-                        {doc.sgkDetails?.useCustomMainSentence
-                          ? 'Boşluk Doldurma Modu'
-                          : 'Word Serbest Yazım Modu'}
+                  <div className="no-print mb-2 flex items-center justify-between bg-stone-100/90 border border-stone-200 px-3 py-1.5 rounded-lg text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-stone-800 text-[11px] uppercase tracking-wide">
+                        Muvafakat Metni:
                       </span>
-                    </button>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        doc.sgkDetails?.useCustomMainSentence
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                      }`}>
+                        {doc.sgkDetails?.useCustomMainSentence ? 'Özel Metin Modu' : 'Akıllı Boşluk Modu (Yay Animasyonlu)'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!doc.sgkDetails?.useCustomMainSentence && !doc.sgkDetails?.customMainSentence) {
+                            updateSgk('customMainSentence', getStandardEk9Sentence());
+                          }
+                          updateSgk('useCustomMainSentence', !doc.sgkDetails?.useCustomMainSentence);
+                        }}
+                        className="text-stone-900 hover:text-black font-bold flex items-center gap-1.5 cursor-pointer underline text-[11px]"
+                        title="Yazı içeriğini serbestçe kelime kelime düzenlemek için tıklayın"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                        <span>
+                          {doc.sgkDetails?.useCustomMainSentence
+                            ? 'Akıllı Boşluk Moduna Dön'
+                            : 'Yazı İçeriğini Doğrudan Düzenle (Word Modu)'}
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -332,7 +362,7 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                       });
                     }}
                     disabled={!isWordMode}
-                    className="p-1 min-h-[60px] w-full block text-justify leading-relaxed cursor-text"
+                    className="p-2 min-h-[60px] w-full block text-justify leading-relaxed cursor-text border border-amber-300/80 bg-amber-50/20 rounded"
                     title="Word gibi doğrudan metne tıklayıp yazabilir, silebilir ve düzenleyebilirsiniz"
                     placeholder="Kanuni muvafakat ve teminat metnini buraya yazınız..."
                   />
@@ -348,6 +378,12 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                       onConfirm={(val) => updateSgk('debtorName', val)}
                       isEditable={isWordMode}
                       sentencePreview={(val) => `${val}’nin Sosyal Güvenlik Kurumuna olan borcuna...`}
+                      fullTextContent={doc.sgkDetails?.customMainSentence || getStandardEk9Sentence()}
+                      onSaveFullText={(txt) => {
+                        updateSgk('customMainSentence', txt);
+                        updateSgk('useCustomMainSentence', true);
+                      }}
+                      fullTextLabel="Kanuni SGK Muvafakat Cümle Metni"
                     />
                     {' '}Sosyal Güvenlik Kurumuna olan{' '}
                     <AnimatedSlot
@@ -360,6 +396,12 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                       onConfirm={(val) => updateSgk('debtPeriod', val)}
                       isEditable={isWordMode}
                       sentencePreview={(val) => `... Kurumuna olan ${val} dönemi/ayına ilişkin ...`}
+                      fullTextContent={doc.sgkDetails?.customMainSentence || getStandardEk9Sentence()}
+                      onSaveFullText={(txt) => {
+                        updateSgk('customMainSentence', txt);
+                        updateSgk('useCustomMainSentence', true);
+                      }}
+                      fullTextLabel="Kanuni SGK Muvafakat Cümle Metni"
                     />
                     {' '}ilişkin{' '}
                     <AnimatedSlot
@@ -379,6 +421,12 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                       }}
                       isEditable={isWordMode}
                       sentencePreview={(val) => `... ilişkin ${val} tutarında ...`}
+                      fullTextContent={doc.sgkDetails?.customMainSentence || getStandardEk9Sentence()}
+                      onSaveFullText={(txt) => {
+                        updateSgk('customMainSentence', txt);
+                        updateSgk('useCustomMainSentence', true);
+                      }}
+                      fullTextLabel="Kanuni SGK Muvafakat Cümle Metni"
                     />
                     {' '}
                     <AnimatedSlot
@@ -391,6 +439,12 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                       onConfirm={(val) => updateSgk('debtType', val)}
                       isEditable={isWordMode}
                       sentencePreview={(val) => `... tutarında ${val} borcuna ve bu borca ...`}
+                      fullTextContent={doc.sgkDetails?.customMainSentence || getStandardEk9Sentence()}
+                      onSaveFullText={(txt) => {
+                        updateSgk('customMainSentence', txt);
+                        updateSgk('useCustomMainSentence', true);
+                      }}
+                      fullTextLabel="Kanuni SGK Muvafakat Cümle Metni"
                     />
                     {' '}ve bu borca bu tarihten ödenmesine kadar geçecek süre için işleyecek fer’ilerine karşılık aşağıda özellikleri yazılı{' '}
                     <AnimatedSlot
@@ -409,6 +463,12 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                       onConfirm={(val) => updateSgk('customPropertyTypeText', val)}
                       isEditable={isWordMode}
                       sentencePreview={(val) => `... özellikleri yazılı ${val} 6183 sayılı Kanunun ...`}
+                      fullTextContent={doc.sgkDetails?.customMainSentence || getStandardEk9Sentence()}
+                      onSaveFullText={(txt) => {
+                        updateSgk('customMainSentence', txt);
+                        updateSgk('useCustomMainSentence', true);
+                      }}
+                      fullTextLabel="Kanuni SGK Muvafakat Cümle Metni"
                     />
                     {' '}6183 sayılı Kanunun 10 uncu maddesinin beşinci fıkrası gereğince teminat olarak gösteriyor ve söz konusu malların Sosyal Güvenlik Kurumu tarafından haczedilmesine muvafakat ediyorum. Bu konuda herhangi bir itirazda bulunmayacağımı beyan ve taahhüt ederim.
                   </p>
@@ -696,12 +756,15 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                     />
                   </div>
                   <div className="text-xs text-stone-700 font-sans mt-0.5 min-h-[16px]">
-                    <InlineEditable
-                      value={doc.sgkDetails?.icraOfficer1Name || (doc.sgkDetails?.showBlankDots ? '................................' : '')}
-                      onChange={(val) => updateSgk('icraOfficer1Name', val)}
-                      disabled={!isWordMode}
-                      className="block cursor-text"
-                      placeholder="Memur Adı ve Sicil No"
+                    <AnimatedSlot
+                      label="İcra Memuru Adı & Sicil No"
+                      description="Muvafakatnameyi huzurunda alan icra memurunun adı soyadı ve sicil numarası"
+                      example="Ali ÖZTÜRK (Sicil No: 12450)"
+                      placeholder="................................"
+                      value={doc.sgkDetails?.icraOfficer1Name || ''}
+                      onConfirm={(val) => updateSgk('icraOfficer1Name', val)}
+                      isEditable={isWordMode}
+                      className="block text-xs font-sans text-stone-700"
                     />
                   </div>
                   <div className="h-10 flex items-end justify-center">
@@ -720,12 +783,15 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                     />
                   </div>
                   <div className="text-xs text-stone-700 font-sans mt-0.5 min-h-[16px]">
-                    <InlineEditable
-                      value={doc.sgkDetails?.icraOfficer2Name || (doc.sgkDetails?.showBlankDots ? '................................' : '')}
-                      onChange={(val) => updateSgk('icraOfficer2Name', val)}
-                      disabled={!isWordMode}
-                      className="block cursor-text"
-                      placeholder="Sorumlu Memur Adı ve Sicil No"
+                    <AnimatedSlot
+                      label="Sorumlu İcra Memuru Adı & Sicil No"
+                      description="Yetkili sorumlu icra memuru veya icra müdür yardımcısının adı ve sicil no"
+                      example="Hasan GÜNEŞ (Sicil No: 9820)"
+                      placeholder="................................"
+                      value={doc.sgkDetails?.icraOfficer2Name || ''}
+                      onConfirm={(val) => updateSgk('icraOfficer2Name', val)}
+                      isEditable={isWordMode}
+                      className="block text-xs font-sans text-stone-700"
                     />
                   </div>
                   <div className="h-10 flex items-end justify-center">
@@ -787,14 +853,15 @@ export const A4Document: React.FC<A4DocumentProps> = ({
 
               {/* Institution Header */}
               <div className="text-center my-2">
-                <InlineEditable
-                  tagName="h2"
-                  multiline={false}
-                  value={doc.institution}
-                  onChange={(val) => updateField('institution', val)}
-                  disabled={!isWordMode}
-                  className="text-sm md:text-base font-bold tracking-wide uppercase text-stone-900 leading-snug block text-center cursor-text"
+                <AnimatedSlot
+                  label="Muhatap Kurum / Makam"
+                  description="Muvafakatnamenin hitap ettiği resmi makam veya kurum"
+                  example="T.C. İÇİŞLERİ BAKANLIĞI EMNİYET GENEL MÜDÜRLÜĞÜNE"
                   placeholder="İLGİLİ MAKAMA / KURUMA"
+                  value={doc.institution || ''}
+                  onConfirm={(val) => updateField('institution', val)}
+                  isEditable={isWordMode}
+                  className="text-sm md:text-base font-bold tracking-wide uppercase text-stone-900 leading-snug inline-block text-center"
                 />
               </div>
 
@@ -822,7 +889,7 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                 )}
               </div>
 
-              {/* Parties Info Block */}
+              {/* Parties Info Block with Animated Spring Slots */}
               <div className="border border-stone-300 bg-stone-50/50 rounded-sm mb-3 text-[12px] font-sans divide-y divide-stone-200">
                 {/* Muvafakat Veren 1 */}
                 <div className="p-2 grid grid-cols-12 gap-1 items-start">
@@ -831,22 +898,73 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                   </div>
                   <div className="col-span-9 text-stone-900 leading-snug">
                     <div className="font-bold flex items-center justify-between">
-                      <span>{doc.grantor.fullName || '...........................................'}</span>
-                      <span className="text-xs font-mono font-medium text-stone-600">
-                        T.C. No: {doc.grantor.tcNumber || '...........'}
-                      </span>
+                      <AnimatedSlot
+                        label="Muvafakat Veren Adı Soyadı"
+                        description="Muvafakatnameyi veren kişinin tam adı soyadı"
+                        example="Ahmet YILMAZ"
+                        placeholder="..........................................."
+                        value={doc.grantor.fullName || ''}
+                        onConfirm={(val) => updateGrantor('fullName', val)}
+                        isEditable={isWordMode}
+                        className="font-bold text-sm"
+                      />
+                      <div className="flex items-center gap-1 text-xs font-mono text-stone-600">
+                        <span>T.C. No:</span>
+                        <AnimatedSlot
+                          label="Muvafakat Veren T.C. Kimlik No"
+                          description="11 haneli T.C. kimlik numarası"
+                          example="12345678901"
+                          placeholder="..........."
+                          value={doc.grantor.tcNumber || ''}
+                          onConfirm={(val) => updateGrantor('tcNumber', val)}
+                          isEditable={isWordMode}
+                          className="font-mono"
+                        />
+                      </div>
                     </div>
-                    {doc.grantor.relation && (
-                      <div className="text-[11px] text-stone-600">
-                        Sıfatı / Yakınlığı: <span className="text-stone-800">{doc.grantor.relation}</span>
-                        {doc.grantor.phone && (
-                          <span className="ml-3 font-mono">Tel: {doc.grantor.phone}</span>
+                    {(doc.grantor.relation || isWordMode) && (
+                      <div className="text-[11px] text-stone-600 mt-0.5 flex items-center flex-wrap gap-x-2">
+                        <span>Sıfatı / Yakınlığı:</span>
+                        <AnimatedSlot
+                          label="Sıfatı / Yakınlığı"
+                          description="Örn: Anne, Baba, Veli, Malik, Hissedar"
+                          example="Baba / Yasal Veli"
+                          placeholder="...................."
+                          value={doc.grantor.relation || ''}
+                          onConfirm={(val) => updateGrantor('relation', val)}
+                          isEditable={isWordMode}
+                          className="text-stone-800 font-semibold"
+                        />
+                        {(doc.grantor.phone || isWordMode) && (
+                          <div className="flex items-center gap-1 font-mono ml-2">
+                            <span>Tel:</span>
+                            <AnimatedSlot
+                              label="Telefon Numarası"
+                              description="İletişim numarası"
+                              example="0532 000 00 00"
+                              placeholder="...................."
+                              value={doc.grantor.phone || ''}
+                              onConfirm={(val) => updateGrantor('phone', val)}
+                              isEditable={isWordMode}
+                              className="font-mono text-stone-800"
+                            />
+                          </div>
                         )}
                       </div>
                     )}
-                    {doc.grantor.address && (
-                      <div className="text-[11px] text-stone-600 mt-0.5">
-                        Adres: <span className="text-stone-800">{doc.grantor.address}</span>
+                    {(doc.grantor.address || isWordMode) && (
+                      <div className="text-[11px] text-stone-600 mt-0.5 flex items-start gap-1">
+                        <span className="shrink-0">Adres:</span>
+                        <AnimatedSlot
+                          label="İkametgah / Tebligat Adresi"
+                          description="Resmi tebligat adresi"
+                          example="Barbaros Mah. Atatürk Cad. No:14 Beşiktaş / İstanbul"
+                          placeholder="......................................................................................."
+                          value={doc.grantor.address || ''}
+                          onConfirm={(val) => updateGrantor('address', val)}
+                          isEditable={isWordMode}
+                          className="text-stone-800 flex-1"
+                        />
                       </div>
                     )}
                   </div>
@@ -860,22 +978,73 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                     </div>
                     <div className="col-span-9 text-stone-900 leading-snug">
                       <div className="font-bold flex items-center justify-between">
-                        <span>{doc.grantor2.fullName || '...........................................'}</span>
-                        <span className="text-xs font-mono font-medium text-stone-600">
-                          T.C. No: {doc.grantor2.tcNumber || '...........'}
-                        </span>
+                        <AnimatedSlot
+                          label="Muvafakat Veren (2) Adı Soyadı"
+                          description="İkinci muvafakat veren kişinin adı soyadı (Örn: Anne)"
+                          example="Ayşe YILMAZ"
+                          placeholder="..........................................."
+                          value={doc.grantor2.fullName || ''}
+                          onConfirm={(val) => updateGrantor2('fullName', val)}
+                          isEditable={isWordMode}
+                          className="font-bold text-sm"
+                        />
+                        <div className="flex items-center gap-1 text-xs font-mono text-stone-600">
+                          <span>T.C. No:</span>
+                          <AnimatedSlot
+                            label="Muvafakat Veren (2) T.C. Kimlik No"
+                            description="11 haneli T.C. kimlik numarası"
+                            example="98765432109"
+                            placeholder="..........."
+                            value={doc.grantor2.tcNumber || ''}
+                            onConfirm={(val) => updateGrantor2('tcNumber', val)}
+                            isEditable={isWordMode}
+                            className="font-mono"
+                          />
+                        </div>
                       </div>
-                      {doc.grantor2.relation && (
-                        <div className="text-[11px] text-stone-600">
-                          Sıfatı / Yakınlığı: <span className="text-stone-800">{doc.grantor2.relation}</span>
-                          {doc.grantor2.phone && (
-                            <span className="ml-3 font-mono">Tel: {doc.grantor2.phone}</span>
+                      {(doc.grantor2.relation || isWordMode) && (
+                        <div className="text-[11px] text-stone-600 mt-0.5 flex items-center flex-wrap gap-x-2">
+                          <span>Sıfatı / Yakınlığı:</span>
+                          <AnimatedSlot
+                            label="Sıfatı / Yakınlığı"
+                            description="Örn: Anne / Yasal Veli"
+                            example="Anne / Yasal Veli"
+                            placeholder="...................."
+                            value={doc.grantor2.relation || ''}
+                            onConfirm={(val) => updateGrantor2('relation', val)}
+                            isEditable={isWordMode}
+                            className="text-stone-800 font-semibold"
+                          />
+                          {(doc.grantor2.phone || isWordMode) && (
+                            <div className="flex items-center gap-1 font-mono ml-2">
+                              <span>Tel:</span>
+                              <AnimatedSlot
+                                label="Telefon Numarası"
+                                description="İletişim numarası"
+                                example="0533 111 22 33"
+                                placeholder="...................."
+                                value={doc.grantor2.phone || ''}
+                                onConfirm={(val) => updateGrantor2('phone', val)}
+                                isEditable={isWordMode}
+                                className="font-mono text-stone-800"
+                              />
+                            </div>
                           )}
                         </div>
                       )}
-                      {doc.grantor2.address && (
-                        <div className="text-[11px] text-stone-600 mt-0.5">
-                          Adres: <span className="text-stone-800">{doc.grantor2.address}</span>
+                      {(doc.grantor2.address || isWordMode) && (
+                        <div className="text-[11px] text-stone-600 mt-0.5 flex items-start gap-1">
+                          <span className="shrink-0">Adres:</span>
+                          <AnimatedSlot
+                            label="İkametgah / Tebligat Adresi"
+                            description="Resmi tebligat adresi"
+                            example="Barbaros Mah. Atatürk Cad. No:14 Beşiktaş / İstanbul"
+                            placeholder="......................................................................................."
+                            value={doc.grantor2.address || ''}
+                            onConfirm={(val) => updateGrantor2('address', val)}
+                            isEditable={isWordMode}
+                            className="text-stone-800 flex-1"
+                          />
                         </div>
                       )}
                     </div>
@@ -890,30 +1059,102 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                     </div>
                     <div className="col-span-9 text-stone-900 leading-snug">
                       <div className="font-bold flex items-center justify-between">
-                        <span>{doc.grantee.fullName || '...........................................'}</span>
-                        <span className="text-xs font-mono font-medium text-stone-600">
-                          T.C. No: {doc.grantee.tcNumber || '...........'}
-                        </span>
+                        <AnimatedSlot
+                          label="Muvafakat Edilen Kişinin Adı Soyadı"
+                          description="Lehine muvafakatname verilen kişinin tam adı soyadı (Örn: Çocuk)"
+                          example="Can YILMAZ"
+                          placeholder="..........................................."
+                          value={doc.grantee.fullName || ''}
+                          onConfirm={(val) => updateGrantee('fullName', val)}
+                          isEditable={isWordMode}
+                          className="font-bold text-sm"
+                        />
+                        <div className="flex items-center gap-1 text-xs font-mono text-stone-600">
+                          <span>T.C. No:</span>
+                          <AnimatedSlot
+                            label="Muvafakat Edilen T.C. Kimlik No"
+                            description="11 haneli T.C. kimlik numarası"
+                            example="45678912304"
+                            placeholder="..........."
+                            value={doc.grantee.tcNumber || ''}
+                            onConfirm={(val) => updateGrantee('tcNumber', val)}
+                            isEditable={isWordMode}
+                            className="font-mono"
+                          />
+                        </div>
                       </div>
-                      <div className="text-[11px] text-stone-600 flex flex-wrap gap-x-4">
-                        {doc.grantee.relation && (
-                          <span>Yakınlık / Durum: <strong className="text-stone-800">{doc.grantee.relation}</strong></span>
-                        )}
-                        {doc.grantee.birthDate && (
-                          <span>Doğum Tarihi: <strong className="font-mono text-stone-800">{doc.grantee.birthDate}</strong></span>
-                        )}
+                      <div className="text-[11px] text-stone-600 flex flex-wrap gap-x-4 mt-0.5">
+                        <div className="flex items-center gap-1">
+                          <span>Yakınlık / Durum:</span>
+                          <AnimatedSlot
+                            label="Yakınlık / Sıfat"
+                            description="Örn: Müşterek Çocuk, Şirket Müdürü"
+                            example="Müşterek Çocuk"
+                            placeholder="...................."
+                            value={doc.grantee.relation || ''}
+                            onConfirm={(val) => updateGrantee('relation', val)}
+                            isEditable={isWordMode}
+                            className="text-stone-800 font-bold"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span>Doğum Tarihi:</span>
+                          <AnimatedSlot
+                            label="Doğum Tarihi"
+                            description="Gün.Ay.Yıl formatında doğum tarihi"
+                            example="15.06.2012"
+                            placeholder="..../..../........"
+                            value={doc.grantee.birthDate || ''}
+                            onConfirm={(val) => updateGrantee('birthDate', val)}
+                            isEditable={isWordMode}
+                            className="font-mono text-stone-800"
+                          />
+                        </div>
                       </div>
-                      {doc.grantee.travelCountry && (
-                        <div className="text-[11px] text-stone-700 mt-0.5">
-                          Gidilecek Yer / Kapsam: <span className="font-medium text-stone-900">{doc.grantee.travelCountry}</span>
-                          {doc.grantee.travelDates && (
-                            <span className="ml-2 font-mono text-stone-600">({doc.grantee.travelDates})</span>
+                      {(doc.grantee.travelCountry || isWordMode) && (
+                        <div className="text-[11px] text-stone-700 mt-0.5 flex items-center flex-wrap gap-1">
+                          <span>Gidilecek Yer / Kapsam:</span>
+                          <AnimatedSlot
+                            label="Gidilecek Yer / Kapsam"
+                            description="Örn: Almanya, Fransa ve Schengen Ülkeleri"
+                            example="Almanya, Fransa ve Schengen Ülkeleri"
+                            placeholder="................................................"
+                            value={doc.grantee.travelCountry || ''}
+                            onConfirm={(val) => updateGrantee('travelCountry', val)}
+                            isEditable={isWordMode}
+                            className="font-medium text-stone-900"
+                          />
+                          {(doc.grantee.travelDates || isWordMode) && (
+                            <div className="flex items-center gap-1 font-mono text-stone-600 ml-1">
+                              <span>(</span>
+                              <AnimatedSlot
+                                label="Seyahat / İzin Tarihleri"
+                                description="İzin verilen tarih aralığı"
+                                example="01.07.2026 - 31.08.2026"
+                                placeholder="...................."
+                                value={doc.grantee.travelDates || ''}
+                                onConfirm={(val) => updateGrantee('travelDates', val)}
+                                isEditable={isWordMode}
+                                className="font-mono text-stone-600"
+                              />
+                              <span>)</span>
+                            </div>
                           )}
                         </div>
                       )}
-                      {doc.grantee.companion && (
-                        <div className="text-[11px] text-stone-700">
-                          Refakatçi / Sorumlu: <span className="font-medium">{doc.grantee.companion}</span>
+                      {(doc.grantee.companion || isWordMode) && (
+                        <div className="text-[11px] text-stone-700 mt-0.5 flex items-center gap-1">
+                          <span>Refakatçi / Sorumlu:</span>
+                          <AnimatedSlot
+                            label="Refakatçi / Sorumlu Kişi"
+                            description="Refakat eden personel veya sorumlu"
+                            example="Kafile Başkanı Öğretmen Mehmet DEMİR refakatinde"
+                            placeholder="................................................"
+                            value={doc.grantee.companion || ''}
+                            onConfirm={(val) => updateGrantee('companion', val)}
+                            isEditable={isWordMode}
+                            className="font-medium text-stone-800"
+                          />
                         </div>
                       )}
                     </div>
@@ -923,40 +1164,54 @@ export const A4Document: React.FC<A4DocumentProps> = ({
 
               {/* Subject (Konu) */}
               {doc.subject && (
-                <div className="mb-3 text-[12.5px] font-sans">
-                  <span className="font-bold uppercase tracking-wider text-stone-900 mr-2">
+                <div className="mb-3 text-[12.5px] font-sans flex items-baseline">
+                  <span className="font-bold uppercase tracking-wider text-stone-900 mr-2 shrink-0">
                     KONU:
                   </span>
-                  <InlineEditable
-                    tagName="span"
-                    value={doc.subject}
-                    onChange={(val) => updateField('subject', val)}
-                    disabled={!isWordMode}
-                    className="font-semibold text-stone-800 cursor-text"
-                    placeholder="Muvafakat konusu..."
-                  />
+                  <div className="flex-1">
+                    <AnimatedSlot
+                      label="Muvafakatname Konusu"
+                      description="Resmi evrak konu satırı"
+                      example="18 Yaşından Küçük Çocuğumuzun Yurt Dışı Seyahati ve Pasaport Çıkarma İzni"
+                      placeholder="Muvafakat konusu..."
+                      value={doc.subject}
+                      onConfirm={(val) => updateField('subject', val)}
+                      isEditable={isWordMode}
+                      className="font-semibold text-stone-800"
+                    />
+                  </div>
                 </div>
               )}
 
-              {/* Legal Body Text */}
-              <div className="text-justify leading-relaxed space-y-2.5 text-stone-950 font-normal">
-                {isWordMode ? (
-                  <InlineEditable
-                    tagName="div"
-                    multiline={true}
-                    value={doc.bodyText}
-                    onChange={(val) => updateField('bodyText', val)}
-                    disabled={!isWordMode}
-                    className="w-full min-h-[100px] block leading-relaxed whitespace-pre-wrap cursor-text"
-                    placeholder="Muvafakat metnini buraya yazınız..."
-                  />
-                ) : (
-                  paragraphs.map((p, idx) => (
-                    <p key={idx} className="indent-6 leading-relaxed">
-                      {p}
-                    </p>
-                  ))
+              {/* Legal Body Text & Content Editor */}
+              <div className="relative group text-justify leading-relaxed text-stone-950 font-normal">
+                {isWordMode && (
+                  <div className="no-print mb-2 flex items-center justify-between bg-stone-100/90 border border-stone-200 px-3 py-1.5 rounded-lg text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-stone-800 text-[11px] uppercase tracking-wide">
+                        Muvafakat Hüküm &amp; Yazı İçeriği:
+                      </span>
+                      <span className="text-[10px] text-stone-500 font-medium">
+                        (Word gibi tıklayıp serbestçe değiştirebilirsiniz)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-stone-700 text-[11px] font-semibold">
+                      <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Yazı İçeriğini Düzenleme Açık</span>
+                    </div>
+                  </div>
                 )}
+
+                <InlineEditable
+                  tagName="div"
+                  multiline={true}
+                  value={doc.bodyText}
+                  onChange={(val) => updateField('bodyText', val)}
+                  disabled={!isWordMode}
+                  className="w-full min-h-[100px] block leading-relaxed whitespace-pre-wrap cursor-text p-2 rounded border border-transparent hover:border-blue-300 focus:border-stone-800 bg-stone-50/30"
+                  placeholder="Muvafakat metnini buraya yazınız..."
+                  title="Metin içeriğini dilediğiniz gibi değiştirebilir, silebilir ve yeni fıkralar ekleyebilirsiniz"
+                />
               </div>
 
               {/* Additional Clauses */}

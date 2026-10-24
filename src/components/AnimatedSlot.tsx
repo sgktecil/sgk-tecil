@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, X, Check, ArrowRight, Maximize2, Minimize2 } from 'lucide-react';
+import { Sparkles, X, Check, ArrowRight, Maximize2, Minimize2, Edit3, AlignLeft } from 'lucide-react';
 
 export type SlotEditStyle = 'popover' | 'modal';
 
@@ -17,6 +17,10 @@ interface AnimatedSlotProps {
   sentencePreview?: (currentVal: string) => string;
   className?: string;
   emptyDisplay?: string;
+  // Yazı ve cümle içeriğini doğrudan değiştirme imkanı
+  fullTextContent?: string;
+  onSaveFullText?: (newText: string) => void;
+  fullTextLabel?: string;
 }
 
 export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
@@ -32,13 +36,18 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
   sentencePreview,
   className = '',
   emptyDisplay,
+  fullTextContent,
+  onSaveFullText,
+  fullTextLabel = 'Cümle / Metin İçeriği',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [tempVal, setTempVal] = useState(value);
+  const [tempFullText, setTempFullText] = useState(fullTextContent || '');
+  const [activeTab, setActiveTab] = useState<'slot' | 'fulltext'>('slot');
   const [isJustUpdated, setIsJustUpdated] = useState(false);
   
-  // Slot edit style: 'popover' (kompakt baloncuk, ekranı kaplamaz) | 'modal' (klasik yay animasyonlu büyük pencere)
+  // Slot edit style: 'popover' (kompakt baloncuk) | 'modal' (klasik yay animasyonlu büyük pencere)
   const [editStyle, setEditStyle] = useState<SlotEditStyle>(() => {
     try {
       const saved = localStorage.getItem('sgk_slot_style');
@@ -59,6 +68,7 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
 
   const slotRef = useRef<HTMLSpanElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Synchronize slot style with global events & localStorage
   useEffect(() => {
@@ -88,8 +98,8 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
   const updatePopoverPosition = useCallback(() => {
     if (!slotRef.current) return;
     const rect = slotRef.current.getBoundingClientRect();
-    const popoverWidth = 320;
-    const estimatedHeight = 240;
+    const popoverWidth = activeTab === 'fulltext' ? 380 : 330;
+    const estimatedHeight = activeTab === 'fulltext' ? 340 : 250;
 
     // Check vertical space
     const spaceBelow = window.innerHeight - rect.bottom;
@@ -111,12 +121,14 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
       placeAbove,
       arrowLeft,
     });
-  }, []);
+  }, [activeTab]);
 
   // Update position and focus on open
   useEffect(() => {
     if (isOpen) {
       setTempVal(value || '');
+      setTempFullText(fullTextContent || '');
+      setActiveTab('slot');
       setIsClosing(false);
       updatePopoverPosition();
 
@@ -136,7 +148,17 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
         window.removeEventListener('scroll', updatePopoverPosition, true);
       };
     }
-  }, [isOpen, value, updatePopoverPosition]);
+  }, [isOpen, value, fullTextContent, updatePopoverPosition]);
+
+  // Auto focus textarea when switching to fulltext tab
+  useEffect(() => {
+    if (activeTab === 'fulltext') {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 50);
+      updatePopoverPosition();
+    }
+  }, [activeTab, updatePopoverPosition]);
 
   const handleOpen = (e: React.MouseEvent) => {
     if (!isEditable) return;
@@ -149,7 +171,7 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
     setTimeout(() => {
       setIsOpen(false);
       setIsClosing(false);
-    }, 160);
+    }, 180);
   };
 
   const handleSave = () => {
@@ -161,7 +183,20 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
       setIsClosing(false);
       setIsJustUpdated(true);
       setTimeout(() => setIsJustUpdated(false), 1200);
-    }, 160);
+    }, 180);
+  };
+
+  const handleSaveFullText = () => {
+    if (onSaveFullText) {
+      onSaveFullText(tempFullText);
+    }
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsOpen(false);
+      setIsClosing(false);
+      setIsJustUpdated(true);
+      setTimeout(() => setIsJustUpdated(false), 1200);
+    }, 180);
   };
 
   const hasValue = Boolean(value && value.trim() && !/^[._\-…·]{2,}$/.test(value.trim()));
@@ -173,7 +208,7 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
       <span
         ref={slotRef}
         onClick={handleOpen}
-        title={isEditable ? `${label} - Tıklayıp doğrudan düzenleyin` : undefined}
+        title={isEditable ? `${label} - Tıklayıp yay animasyonlu pencerede düzenleyin` : undefined}
         className={`relative inline cursor-pointer transition-all duration-200 select-text ${
           isJustUpdated ? 'animate-slot-pulse rounded-xs px-1 font-bold' : ''
         } ${
@@ -194,12 +229,12 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
         )}
       </span>
 
-      {/* PORTAL RENDERING: Prevents any parent zoom/transform clipping */}
+      {/* PORTAL RENDERING: All modes feature the fluid spring bounce animation */}
       {isOpen &&
         createPortal(
           editStyle === 'popover' ? (
             /* ========================================================= */
-            /* STYLE 1: KOMPAKT BALONCUK (Non-intrusive / Doesn't dim)    */
+            /* STYLE 1: KOMPAKT BALONCUK (Yay Animasyonlu, Ekranı Kaplamaz) */
             /* ========================================================= */
             <div
               className="fixed inset-0 z-50 no-print"
@@ -208,7 +243,7 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
               {/* Ultra-light transparent backdrop to capture outside clicks without darkening screen */}
               <div className="absolute inset-0 bg-stone-900/10 transition-opacity" />
 
-              {/* Anchored Popover Box */}
+              {/* Anchored Popover Box with Spring Animation */}
               {coords && (
                 <div
                   onClick={(e) => e.stopPropagation()}
@@ -216,11 +251,11 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
                     position: 'fixed',
                     top: `${coords.top}px`,
                     left: `${coords.left}px`,
-                    width: '320px',
+                    width: activeTab === 'fulltext' ? '380px' : '330px',
                     transform: coords.placeAbove ? 'translateY(-100%)' : 'none',
                   }}
                   className={`z-50 bg-white rounded-xl shadow-2xl border border-stone-200/95 overflow-visible transition-all ${
-                    isClosing ? 'animate-popover-out' : 'animate-popover-in'
+                    isClosing ? 'animate-spring-backward' : 'animate-spring-forward'
                   }`}
                 >
                   {/* Directional Arrow pointing to slot */}
@@ -241,7 +276,7 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      {/* Style switcher toggle (to classic modal) */}
+                      {/* Switch to large modal */}
                       <button
                         type="button"
                         onClick={() => changeStyle('modal')}
@@ -263,91 +298,163 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
                     </div>
                   </div>
 
-                  {/* Body */}
+                  {/* Sub-tab switcher: Slot vs Full Text Editing */}
+                  {onSaveFullText && (
+                    <div className="px-3 pt-2 bg-stone-100 border-b border-stone-200 flex items-center gap-1 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('slot')}
+                        className={`px-2.5 py-1 rounded-t-md font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
+                          activeTab === 'slot'
+                            ? 'bg-white text-stone-900 border-t border-x border-stone-200 shadow-2xs'
+                            : 'text-stone-600 hover:text-stone-900'
+                        }`}
+                      >
+                        <span>⚡ Alanı Doldur</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('fulltext')}
+                        className={`px-2.5 py-1 rounded-t-md font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
+                          activeTab === 'fulltext'
+                            ? 'bg-white text-stone-900 border-t border-x border-stone-200 shadow-2xs'
+                            : 'text-stone-600 hover:text-stone-900'
+                        }`}
+                      >
+                        <Edit3 className="w-3 h-3 text-amber-600" />
+                        <span>✏️ Metin İçeriğini Düzenle</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Body Content */}
                   <div className="p-3 space-y-2.5">
-                    {description && (
-                      <p className="text-[11px] text-stone-500 leading-snug">
-                        {description}
-                      </p>
-                    )}
-
-                    {/* Compact Input */}
-                    <div className="relative">
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        value={tempVal}
-                        onChange={(e) => setTempVal(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleSave();
-                          } else if (e.key === 'Escape') {
-                            e.preventDefault();
-                            handleClose();
-                          }
-                        }}
-                        placeholder={example ? `Örn: ${example}` : 'Metin veya isim giriniz...'}
-                        className="w-full pl-2.5 pr-8 py-2 text-xs font-bold text-stone-950 bg-stone-50 border border-stone-300 rounded-lg focus:border-stone-900 focus:bg-white focus:outline-none transition-all shadow-inner"
-                      />
-                      {tempVal && (
-                        <button
-                          type="button"
-                          onClick={() => setTempVal('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-[11px] font-bold p-0.5 rounded cursor-pointer"
-                          title="Temizle"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Quick Example Pill */}
-                    {example && !tempVal && (
-                      <div className="flex items-center gap-1.5 pt-0.5">
-                        <span className="text-[10px] text-stone-400">Örnek:</span>
-                        <button
-                          type="button"
-                          onClick={() => setTempVal(example)}
-                          className="text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer truncate max-w-[220px]"
-                          title="Örneği doldur"
-                        >
-                          "{example}"
-                        </button>
+                    {activeTab === 'fulltext' && onSaveFullText ? (
+                      /* FULL TEXT CONTENT EDITING VIEW */
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[10px] text-stone-500">
+                          <span className="font-semibold text-stone-700">{fullTextLabel}:</span>
+                          <span>İstediğiniz gibi serbestçe yazıp değiştirebilirsiniz</span>
+                        </div>
+                        <textarea
+                          ref={textareaRef}
+                          rows={6}
+                          value={tempFullText}
+                          onChange={(e) => setTempFullText(e.target.value)}
+                          placeholder="Belgedeki metin veya cümleyi buraya serbestçe yazınız..."
+                          className="w-full p-2.5 text-xs font-serif leading-relaxed text-stone-950 bg-stone-50 border border-stone-300 rounded-lg focus:border-stone-900 focus:bg-white focus:outline-none transition-all shadow-inner"
+                        />
                       </div>
-                    )}
+                    ) : (
+                      /* SINGLE SLOT EDITING VIEW */
+                      <>
+                        {description && (
+                          <p className="text-[11px] text-stone-500 leading-snug">
+                            {description}
+                          </p>
+                        )}
 
-                    {/* Live Sentence Preview Preview */}
-                    <div className="p-2 bg-amber-50/70 rounded-lg border border-amber-200/80 text-[11px] text-stone-800">
-                      <div className="text-[9px] uppercase tracking-wider font-bold text-amber-900 mb-0.5">
-                        Canlı Önizleme:
-                      </div>
-                      <p className="font-serif italic text-stone-900 line-clamp-2 leading-relaxed">
-                        "{sentencePreview ? (
-                          sentencePreview(tempVal || placeholder)
-                        ) : (
-                          <span>
-                            ... <strong className="text-amber-950 not-italic">{tempVal || placeholder}</strong>{suffix} ...
-                          </span>
-                        )}"
-                      </p>
-                    </div>
+                        {/* Compact Input */}
+                        <div className="relative">
+                          <input
+                            ref={inputRef}
+                            type="text"
+                            value={tempVal}
+                            onChange={(e) => setTempVal(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSave();
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                handleClose();
+                              }
+                            }}
+                            placeholder={example ? `Örn: ${example}` : 'Metin veya isim giriniz...'}
+                            className="w-full pl-2.5 pr-8 py-2 text-xs font-bold text-stone-950 bg-stone-50 border border-stone-300 rounded-lg focus:border-stone-900 focus:bg-white focus:outline-none transition-all shadow-inner"
+                          />
+                          {tempVal && (
+                            <button
+                              type="button"
+                              onClick={() => setTempVal('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-[11px] font-bold p-0.5 rounded cursor-pointer"
+                              title="Temizle"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Quick Example Pill */}
+                        {example && !tempVal && (
+                          <div className="flex items-center gap-1.5 pt-0.5">
+                            <span className="text-[10px] text-stone-400">Örnek:</span>
+                            <button
+                              type="button"
+                              onClick={() => setTempVal(example)}
+                              className="text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer truncate max-w-[220px]"
+                              title="Örneği doldur"
+                            >
+                              "{example}"
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Live Sentence Preview */}
+                        <div className="p-2 bg-amber-50/70 rounded-lg border border-amber-200/80 text-[11px] text-stone-800">
+                          <div className="text-[9px] uppercase tracking-wider font-bold text-amber-900 mb-0.5 flex items-center justify-between">
+                            <span>Canlı Cümle Önizleme:</span>
+                            {onSaveFullText && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab('fulltext')}
+                                className="text-amber-800 underline hover:text-amber-950 text-[10px] font-semibold"
+                              >
+                                Metni Değiştir
+                              </button>
+                            )}
+                          </div>
+                          <p className="font-serif italic text-stone-900 line-clamp-2 leading-relaxed">
+                            "{sentencePreview ? (
+                              sentencePreview(tempVal || placeholder)
+                            ) : (
+                              <span>
+                                ... <strong className="text-amber-950 not-italic">{tempVal || placeholder}</strong>{suffix} ...
+                              </span>
+                            )}"
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Footer */}
                   <div className="px-3 py-2 bg-stone-50 border-t border-stone-200 rounded-b-xl flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTempVal('');
-                        onConfirm('');
-                        handleClose();
-                      }}
-                      className="text-[10px] text-stone-500 hover:text-stone-800 underline underline-offset-2 cursor-pointer"
-                      title="Noktalı boşluk olarak bırak"
-                    >
-                      Boş Bırak
-                    </button>
+                    {activeTab === 'fulltext' ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempFullText(fullTextContent || '');
+                        }}
+                        className="text-[10px] text-stone-500 hover:text-stone-800 underline underline-offset-2 cursor-pointer"
+                        title="Orijinal metne sıfırla"
+                      >
+                        Sıfırla
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempVal('');
+                          onConfirm('');
+                          handleClose();
+                        }}
+                        className="text-[10px] text-stone-500 hover:text-stone-800 underline underline-offset-2 cursor-pointer"
+                        title="Noktalı boşluk olarak bırak"
+                      >
+                        Boş Bırak
+                      </button>
+                    )}
 
                     <div className="flex items-center gap-1.5">
                       <button
@@ -359,11 +466,11 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={handleSave}
+                        onClick={activeTab === 'fulltext' ? handleSaveFullText : handleSave}
                         className="px-3 py-1 bg-stone-900 hover:bg-stone-800 text-white font-bold text-[11px] rounded-lg shadow-xs flex items-center gap-1 transition-all cursor-pointer"
                       >
                         <Check className="w-3 h-3 text-amber-300" />
-                        <span>Uygula</span>
+                        <span>{activeTab === 'fulltext' ? 'Metni Güncelle' : 'Uygula'}</span>
                       </button>
                     </div>
                   </div>
@@ -372,7 +479,7 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
             </div>
           ) : (
             /* ========================================================= */
-            /* STYLE 2: KLASİK YAY ANİMASYONLU BÜYÜK MODAL (Original)    */
+            /* STYLE 2: KLASİK YAY ANİMASYONLU BÜYÜK MODAL               */
             /* ========================================================= */
             <div
               className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/45 backdrop-blur-xs no-print transition-opacity duration-200"
@@ -380,7 +487,7 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className={`bg-white rounded-2xl shadow-2xl border border-stone-200/90 max-w-md w-full overflow-hidden transition-all transform ${
+                className={`bg-white rounded-2xl shadow-2xl border border-stone-200/90 max-w-lg w-full overflow-hidden transition-all transform ${
                   isClosing ? 'animate-spring-backward' : 'animate-spring-forward'
                 }`}
               >
@@ -395,13 +502,13 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
                         {label}
                       </h3>
                       <span className="text-[10px] text-stone-300 block -mt-0.5">
-                        A4 Resmi Belge Boşluk Doldurma
+                        A4 Resmi Belge Boşluk &amp; Metin Düzenleme (Yay Animasyonlu)
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    {/* Style switcher toggle (to compact popover) */}
+                    {/* Switch to compact popover */}
                     <button
                       type="button"
                       onClick={() => changeStyle('popover')}
@@ -423,96 +530,187 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
                   </div>
                 </div>
 
+                {/* Sub-tab switcher in Modal */}
+                {onSaveFullText && (
+                  <div className="px-5 pt-2.5 bg-stone-100 border-b border-stone-200 flex items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('slot')}
+                      className={`px-3 py-1.5 rounded-t-lg font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        activeTab === 'slot'
+                          ? 'bg-white text-stone-900 border-t border-x border-stone-200 shadow-2xs'
+                          : 'text-stone-600 hover:text-stone-900'
+                      }`}
+                    >
+                      <span>⚡ Alanı Doldur</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('fulltext')}
+                      className={`px-3 py-1.5 rounded-t-lg font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        activeTab === 'fulltext'
+                          ? 'bg-white text-stone-900 border-t border-x border-stone-200 shadow-2xs'
+                          : 'text-stone-600 hover:text-stone-900'
+                      }`}
+                    >
+                      <AlignLeft className="w-3.5 h-3.5 text-amber-600" />
+                      <span>✏️ Metin / Cümle İçeriğini Değiştir</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Content Body */}
                 <div className="p-5 space-y-4">
-                  {description && (
-                    <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-2.5 rounded-lg border border-stone-200/60">
-                      {description}
-                    </p>
-                  )}
-
-                  {/* Input Area */}
-                  <div>
-                    <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1.5">
-                      Buraya Yazınız:
-                    </label>
-                    <div className="relative">
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        value={tempVal}
-                        onChange={(e) => setTempVal(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleSave();
-                          } else if (e.key === 'Escape') {
-                            e.preventDefault();
-                            handleClose();
-                          }
-                        }}
-                        placeholder={example ? `Örn: ${example}` : 'Ad Soyad veya metin giriniz...'}
-                        className="w-full px-3.5 py-3 text-sm font-bold text-stone-950 bg-stone-50 border-2 border-stone-300 rounded-xl focus:border-stone-900 focus:bg-white focus:outline-none transition-all shadow-inner"
-                      />
-                      {tempVal && (
-                        <button
-                          type="button"
-                          onClick={() => setTempVal('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-800 text-xs px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 transition-colors cursor-pointer"
-                          title="Metni Temizle"
-                        >
-                          ✕ Temizle
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Quick Fill Suggestion */}
-                  {example && !tempVal && (
-                    <div className="flex items-center gap-2 pt-0.5">
-                      <span className="text-[11px] text-stone-500 font-medium">Hızlı Örnek:</span>
-                      <button
-                        type="button"
-                        onClick={() => setTempVal(example)}
-                        className="text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1"
-                      >
-                        <span>"{example}"</span>
-                        <ArrowRight className="w-3 h-3 text-blue-500" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Live Sentence Preview Strip */}
-                  <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/70 text-xs space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-amber-900 tracking-wider block">
-                      Cümledeki Canlı Görünüm (Önizleme)
-                    </span>
-                    <p className="font-serif text-stone-900 italic leading-relaxed text-[13px]">
-                      "{sentencePreview ? (
-                        sentencePreview(tempVal || placeholder)
-                      ) : (
-                        <span>
-                          ... <strong className="text-amber-950 underline decoration-amber-500 not-italic">{tempVal || placeholder}</strong>{suffix} ...
+                  {activeTab === 'fulltext' && onSaveFullText ? (
+                    /* FULL TEXT CONTENT EDITING VIEW */
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider">
+                          {fullTextLabel} (Serbestçe Değiştirebilirsiniz):
+                        </label>
+                        <span className="text-[11px] text-stone-500">
+                          {tempFullText.length} karakter
                         </span>
-                      )}"
-                    </p>
-                  </div>
+                      </div>
+                      <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-2.5 rounded-lg border border-stone-200/60">
+                        Bu alanda yazılan metin belgedeki kanuni cümle veya paragrafın yerine doğrudan basılacaktır. İster kelimeleri düzeltin, ister tamamen özel kendi cümlenizi yazın.
+                      </p>
+                      <textarea
+                        ref={textareaRef}
+                        rows={7}
+                        value={tempFullText}
+                        onChange={(e) => setTempFullText(e.target.value)}
+                        placeholder="Kanuni beyan ve muvafakat metnini dilediğiniz gibi yazınız..."
+                        className="w-full px-3.5 py-3 text-sm font-serif leading-relaxed text-stone-950 bg-white border-2 border-stone-300 rounded-xl focus:border-stone-900 focus:outline-none transition-all shadow-inner"
+                      />
+                    </div>
+                  ) : (
+                    /* SINGLE SLOT EDITING VIEW */
+                    <>
+                      {description && (
+                        <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-2.5 rounded-lg border border-stone-200/60">
+                          {description}
+                        </p>
+                      )}
+
+                      {/* Input Area */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider">
+                            Buraya Yazınız:
+                          </label>
+                          {onSaveFullText && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('fulltext')}
+                              className="text-[11px] text-amber-800 hover:text-amber-950 font-semibold underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              <span>Cümle İçeriğini Değiştir</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <input
+                            ref={inputRef}
+                            type="text"
+                            value={tempVal}
+                            onChange={(e) => setTempVal(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSave();
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                handleClose();
+                              }
+                            }}
+                            placeholder={example ? `Örn: ${example}` : 'Ad Soyad veya metin giriniz...'}
+                            className="w-full px-3.5 py-3 text-sm font-bold text-stone-950 bg-stone-50 border-2 border-stone-300 rounded-xl focus:border-stone-900 focus:bg-white focus:outline-none transition-all shadow-inner"
+                          />
+                          {tempVal && (
+                            <button
+                              type="button"
+                              onClick={() => setTempVal('')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-800 text-xs px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 transition-colors cursor-pointer"
+                              title="Metni Temizle"
+                            >
+                              ✕ Temizle
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quick Fill Suggestion */}
+                      {example && !tempVal && (
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <span className="text-[11px] text-stone-500 font-medium">Hızlı Örnek:</span>
+                          <button
+                            type="button"
+                            onClick={() => setTempVal(example)}
+                            className="text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1"
+                          >
+                            <span>"{example}"</span>
+                            <ArrowRight className="w-3 h-3 text-blue-500" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Live Sentence Preview Strip */}
+                      <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/70 text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase font-bold text-amber-900 tracking-wider block">
+                            Cümledeki Canlı Görünüm (Önizleme)
+                          </span>
+                          {onSaveFullText && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('fulltext')}
+                              className="text-[10px] text-amber-900 underline font-semibold"
+                            >
+                              Metni Özelleştir
+                            </button>
+                          )}
+                        </div>
+                        <p className="font-serif text-stone-900 italic leading-relaxed text-[13px]">
+                          "{sentencePreview ? (
+                            sentencePreview(tempVal || placeholder)
+                          ) : (
+                            <span>
+                              ... <strong className="text-amber-950 underline decoration-amber-500 not-italic">{tempVal || placeholder}</strong>{suffix} ...
+                            </span>
+                          )}"
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Footer Actions */}
                 <div className="px-5 py-3.5 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTempVal('');
-                      onConfirm('');
-                      handleClose();
-                    }}
-                    className="text-xs font-medium text-stone-500 hover:text-stone-800 transition-colors cursor-pointer underline underline-offset-2"
-                    title="Boş bırakıp noktalı alan olarak tut"
-                  >
-                    Boş Bırak (Noktalı Yap)
-                  </button>
+                  {activeTab === 'fulltext' ? (
+                    <button
+                      type="button"
+                      onClick={() => setTempFullText(fullTextContent || '')}
+                      className="text-xs font-medium text-stone-500 hover:text-stone-800 transition-colors cursor-pointer underline underline-offset-2"
+                      title="İlk metne geri döndür"
+                    >
+                      Orijinale Sıfırla
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTempVal('');
+                        onConfirm('');
+                        handleClose();
+                      }}
+                      className="text-xs font-medium text-stone-500 hover:text-stone-800 transition-colors cursor-pointer underline underline-offset-2"
+                      title="Boş bırakıp noktalı alan olarak tut"
+                    >
+                      Boş Bırak (Noktalı Yap)
+                    </button>
+                  )}
 
                   <div className="flex items-center gap-2">
                     <button
@@ -524,11 +722,11 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={handleSave}
+                      onClick={activeTab === 'fulltext' ? handleSaveFullText : handleSave}
                       className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow-md"
                     >
                       <Check className="w-3.5 h-3.5 text-amber-300" />
-                      <span>Onayla & Yerleştir (Enter)</span>
+                      <span>{activeTab === 'fulltext' ? 'Metni Güncelle & Kaydet' : 'Onayla & Yerleştir (Enter)'}</span>
                     </button>
                   </div>
                 </div>
