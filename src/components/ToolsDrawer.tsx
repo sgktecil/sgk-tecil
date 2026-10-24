@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Scale,
@@ -16,13 +16,54 @@ import {
   FileText,
   Save,
   CheckCircle2,
-  FileSignature
+  FileSignature,
+  ChevronDown
 } from 'lucide-react';
 import { INITIAL_BANKALAR } from '../data/bankalar';
 import { KNOWLEDGE_BASE } from '../data/knowledge';
 import { formatTL, formatDateTR } from '../utils/calculator';
 import { safeStorage } from '../utils/storage';
 import { Banka } from '../types';
+
+const TOOL_CONFIG: Record<
+  'maasTab' | 'bankaTab' | 'tebligatTab' | 'bilgiTab',
+  {
+    title: string;
+    subtitle: string;
+    icon: React.ElementType;
+    badgeColor: string;
+    iconColor: string;
+  }
+> = {
+  maasTab: {
+    title: 'Maaş Haczi Hesaplama',
+    subtitle: 'İİK Md. 83 & 6183 Md. 71 yasal kesinti hesaplama aracı',
+    icon: Scale,
+    badgeColor: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-300',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
+  },
+  bankaTab: {
+    title: 'Banka Rehberi & DETSİS/KEP',
+    subtitle: 'Bankaların resmi VKN, DETSİS ve KEP tebligat adresleri',
+    icon: Building2,
+    badgeColor: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+  },
+  tebligatTab: {
+    title: 'Tebligat Süre Hesaplama',
+    subtitle: '7201 s.K. 7/a elektronik & fiziki tebligat yasal süre sayacı',
+    icon: Send,
+    badgeColor: 'bg-sky-500/10 border-sky-500/20 text-sky-700 dark:text-sky-300',
+    iconColor: 'text-sky-600 dark:text-sky-400',
+  },
+  bilgiTab: {
+    title: 'Bilgi Portalı & Mevzuat Notları',
+    subtitle: '2024/12 & 2026/15 Genelgeler, 6183 & 5510 kanun maddeleri',
+    icon: BookOpen,
+    badgeColor: 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-300',
+    iconColor: 'text-amber-600 dark:text-amber-400',
+  },
+};
 
 interface ToolsDrawerProps {
   isOpen: boolean;
@@ -42,6 +83,20 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
   const [currentTab, setCurrentTab] = useState<'maasTab' | 'bankaTab' | 'tebligatTab' | 'bilgiTab'>(
     activeSection
   );
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const switcherRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
+        setSwitcherOpen(false);
+      }
+    };
+    if (switcherOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [switcherOpen]);
 
   useEffect(() => {
     setCurrentTab(activeSection);
@@ -155,93 +210,125 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
           color: 'var(--text-primary)',
         }}
       >
-        {/* Drawer Header */}
-        <div
-          className="p-4 sm:px-6 border-b flex items-center justify-between gap-3 shrink-0"
-          style={{
-            backgroundColor: 'var(--bg-secondary)',
-            borderColor: 'var(--border-primary)',
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-black tracking-tight">{drawerTitle}</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-slate-500/10 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        {/* Drawer Header: Dedicated to Active Tool (No redundant nested tab bar!) */}
+        {(() => {
+          const activeTool = TOOL_CONFIG[currentTab];
+          const ActiveIcon = activeTool.icon;
 
-        {/* Tab Selector Bar */}
-        <div className="flex border-b text-xs font-bold overflow-x-auto p-1.5 gap-1 shrink-0" style={{ borderColor: 'var(--border-primary)' }}>
-          <button
-            onClick={() => setCurrentTab('maasTab')}
-            className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all ${
-              currentTab === 'maasTab'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'hover:bg-slate-500/10 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            <Scale className="w-3.5 h-3.5" />
-            <span>Maaş Haczi</span>
-          </button>
-
-          <button
-            onClick={() => setCurrentTab('bankaTab')}
-            className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all ${
-              currentTab === 'bankaTab'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'hover:bg-slate-500/10 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Banka Rehberi</span>
-          </button>
-
-          <button
-            onClick={() => setCurrentTab('tebligatTab')}
-            className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all ${
-              currentTab === 'tebligatTab'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'hover:bg-slate-500/10 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Tebligat Süre</span>
-          </button>
-
-          <button
-            onClick={() => setCurrentTab('bilgiTab')}
-            className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all ${
-              currentTab === 'bilgiTab'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'hover:bg-slate-500/10 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Bilgi Portalı</span>
-          </button>
-
-          {onOpenMuvafakatname && (
-            <button
-              type="button"
-              onClick={() => {
-                onOpenMuvafakatname();
-                onClose();
+          return (
+            <div
+              className="p-4 sm:px-6 border-b flex items-center justify-between gap-3 shrink-0"
+              style={{
+                backgroundColor: 'var(--bg-secondary)',
+                borderColor: 'var(--border-primary)',
               }}
-              className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-500/40 font-bold shrink-0 cursor-pointer ml-auto"
-              title="Resmî EK-9 Muvafakatname ve Belge Düzenleyici (Deneme Aşamasında)"
             >
-              <FileSignature className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              <span>EK-9 Muvafakatname</span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-600 text-white font-extrabold uppercase">
-                Deneme
-              </span>
-            </button>
-          )}
-        </div>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`p-2.5 rounded-xl border shrink-0 ${activeTool.badgeColor}`}>
+                  <ActiveIcon className={`w-5 h-5 ${activeTool.iconColor}`} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base sm:text-lg font-black tracking-tight truncate text-slate-900 dark:text-white">
+                      {activeTool.title}
+                    </h2>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-300 hidden sm:inline-block">
+                      Yardımcı Araç
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden sm:block">
+                    {activeTool.subtitle}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Fast Switcher Dropdown (Tucked away, doesn't clutter the page) */}
+                <div className="relative" ref={switcherRef}>
+                  <button
+                    type="button"
+                    onClick={() => setSwitcherOpen(!switcherOpen)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 cursor-pointer hover:bg-slate-500/10"
+                    style={{ borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
+                    title="Diğer araçlara geçiş yap"
+                  >
+                    <span>Diğer Araçlar</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${switcherOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {switcherOpen && (
+                    <div
+                      className="absolute right-0 mt-2 w-64 rounded-2xl shadow-2xl border p-1.5 text-xs z-50 animate-in fade-in zoom-in-95 duration-150"
+                      style={{
+                        backgroundColor: 'var(--bg-elevated)',
+                        borderColor: 'var(--border-primary)',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b mb-1" style={{ borderColor: 'var(--border-primary)' }}>
+                        Yardımcı Araç Değiştir
+                      </div>
+
+                      {(Object.keys(TOOL_CONFIG) as Array<keyof typeof TOOL_CONFIG>).map((key) => {
+                        const t = TOOL_CONFIG[key];
+                        const Icon = t.icon;
+                        const isSelected = currentTab === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => {
+                              setCurrentTab(key);
+                              setSwitcherOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2.5 p-2 rounded-xl transition-colors text-left cursor-pointer ${
+                              isSelected
+                                ? 'bg-slate-500/15 font-bold text-slate-900 dark:text-white'
+                                : 'hover:bg-slate-500/10 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <div className={`p-1.5 rounded-lg border ${t.badgeColor}`}>
+                              <Icon className={`w-3.5 h-3.5 ${t.iconColor}`} />
+                            </div>
+                            <div className="truncate flex-1">
+                              <div className="font-semibold text-xs truncate">{t.title}</div>
+                            </div>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-teal-600 shrink-0" />}
+                          </button>
+                        );
+                      })}
+
+                      {onOpenMuvafakatname && (
+                        <div className="pt-1 mt-1 border-t" style={{ borderColor: 'var(--border-primary)' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onOpenMuvafakatname();
+                              onClose();
+                            }}
+                            className="w-full flex items-center gap-2.5 p-2 rounded-xl transition-colors text-left cursor-pointer bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold"
+                          >
+                            <FileSignature className="w-3.5 h-3.5 text-amber-600" />
+                            <span>EK-9 Muvafakatname</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Close Button */}
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-full hover:bg-slate-500/10 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                  title="Kapat"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Content Area */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-6 flex-1 text-xs">
