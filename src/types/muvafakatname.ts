@@ -1,140 +1,99 @@
-export type MuvafakatnameKategori =
-  | 'ek9-sgk'
-  | 'ek9-3sahis'
-  | 'maas'
-  | 'banka'
-  | 'tasinmaz'
-  | 'tasit'
-  | 'taahhut'
-  | 'genel';
+export type EmblemType = 'tc' | 'justice' | 'company' | 'none';
+export type BorderStyle = 'classic-double' | 'thin-single' | 'modern-corners' | 'none';
+export type DocFont = 'serif' | 'garamond' | 'sans';
+export type SignatureLayout = 'single' | 'dual_parents' | 'grantor_grantee' | 'notary_block' | 'sgk_icra';
 
-export type TeminatTuru = 'gayrimenkul' | 'tasit' | 'banka' | 'maas' | 'diger';
-
-export interface TeminatBilgisi {
-  tur: TeminatTuru;
-  // Taşınmaz detayları
-  il?: string;
-  ilce?: string;
-  mahalleKoy?: string;
-  ada?: string;
-  parsel?: string;
-  bagimsizBolum?: string;
-  yuzolcumu?: string;
-  nitelik?: string;
-  tapuMaliki?: string;
-  hisseOrani?: string;
-  // Taşıt detayları
-  plaka?: string;
-  markaModel?: string;
-  modelYili?: string;
-  cinsi?: string;
-  sasiNo?: string;
-  motorNo?: string;
-  ruhsatSahibi?: string;
-  // Banka / Alacak
-  bankaAdi?: string;
-  iban?: string;
-  hesapNo?: string;
-  alacakTutari?: string;
-  // Maaş / Ücret
-  calistigiYer?: string;
-  aylikNetUcret?: string;
-  kesintiTutariOrani?: string;
-  // Serbest açıklama
-  aciklama?: string;
+export interface PersonInfo {
+  fullName: string;
+  tcNumber: string;
+  phone?: string;
+  address?: string;
+  relation?: string; // Anne, Baba, Vasi, Şirket Yetkilisi vb.
+  birthDate?: string;
+  title?: string; // Ünvanı
+  taxNumber?: string; // Vergi Kimlik No
 }
 
-export interface MuvafakatnameTemplate {
+export interface SgkEk9Details {
+  annexCode: string; // "Ek-9"
+  debtorName: string; // Asıl borçlu şahıs / firma (örn: ABC LİMİTED ŞİRKETİ)
+  debtPeriod: string; // Borç dönemi / ayı (örn: 2025/12 - 2026/05)
+  debtAmount: string; // Tutar (örn: 450.000,00)
+  debtType: string; // Borç türü (örn: Sigorta Primi ve İdari Para Cezası)
+  propertyType: 'menkul' | 'gayrimenkul' | 'menkul / gayrimenkul' | 'custom'; // "menkul", "gayrimenkul", "menkul / gayrimenkul" veya özel
+  customPropertyTypeText?: string; // Cümle içinde geçen mal ibaresi (örn: "menkul malı", "gayrimenkul malı", "menkul / gayrimenkul malı", "taşıt aracını" vb.)
+  propertyDetails: string; // Teminat gösterilen malın detayları (Plaka, Ada/Parsel vb.)
+  propertyDetailsTitle?: string; // Kutu başlığı örn: "Teminat Gösterilen Malın Özellikleri"
+
+  // Serbest Cümle Düzenleme Modu (Kullanıcı kanuni cümleyi dilediği gibi kelime kelime düzenleyebilir)
+  useCustomMainSentence?: boolean;
+  customMainSentence?: string;
+
+  // Gayrimenkul Eş Muvafakati (TMK m. 194 uyarınca eş rızası & imzası)
+  includeSpouseConsent?: boolean;
+  spouseFullName?: string;
+  spouseTcNumber?: string;
+  spouseTitle?: string; // "Malikin Eşi (TMK m.194 Eş Muvafakati)"
+  spouseConsentText?: string; // Eş muvafakat beyan metni
+  grantorTitleInBox?: string; // İmza kutusundaki başlık
+
+  // İcra Memurları
+  icraOfficer1Title?: string; // "İcra Memuru"
+  icraOfficer1Name: string; // İcra Memuru Ad Soyad / Sicil
+  icraOfficer2Title?: string; // "Sorumlu İcra Memuru"
+  icraOfficer2Name: string; // Sorumlu İcra Memuru Ad Soyad / Sicil
+  endorsementNote: string; // "Bu muvafakatname, huzurumuzda imza altına alınmıştır."
+
+  // Boş / Noktalı Mod ve Çizgiler
+  showBlankDots: boolean; // Doldurulmamış alanlarda ..................... çizgileri göster
+  showPropertyBox?: boolean; // Teminat mal özellikleri kutusunu göster/gizle (Görsel formatında varsayılan kapalı veya isteğe bağlı açılabilir)
+  dottedPropertyDetailsLines?: number; // Mal özellikleri boş ise kaç satır noktalı çizgi basılsın (1-4)
+  customFreeText?: string; // Belgedeki boş alana (imzalar öncesi veya arası) serbestçe yazılacak ek not, taşınmaz şerhi veya açıklama
+}
+
+export interface MuvafakatnameDocument {
   id: string;
-  baslik: string;
-  formKodu?: string; // örn: "EK-9"
-  kategori: MuvafakatnameKategori;
-  aciklama: string;
-  varsayilanKurum: string;
-  varsayilanAltBirim?: string;
-  varsayilanKonu: string;
-  yasalDayanak: string;
-  metin: string;
-  teminatVarsayilan?: TeminatBilgisi;
-  imzaBaslik1: string;
-  imzaBaslik2?: string;
-  huzurdaImzaVarMi?: boolean;
+  templateType: 'standard' | 'sgk_ek9';
+  title: string; // e.g. "ÜÇÜNCÜ ŞAHISLAR TARAFINDAN VERİLECEK MUVAFAKATNAME ÖRNEĞİ"
+  subtitle?: string; // e.g. "6183 SAYILI KANUN 10/5 MADDESİ GEREĞİNCE"
+  annexCode?: string; // "Ek-9"
+  institution: string; // e.g. "İSTANBUL SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜNE"
+  documentNo: string; // e.g. "MVF-2026/041"
+  date: string; // e.g. "21.10.2026"
+  city: string; // e.g. "İstanbul"
+
+  // SGK Ek-9 Özel Alanları
+  sgkDetails?: SgkEk9Details;
+
+  // Taraflar
+  grantor: PersonInfo; // Muvafakat Veren 3. Şahıs (Maliki)
+  grantor2: PersonInfo & { enabled: boolean }; // Varsa 2. Muvafakat Veren
+  grantee: PersonInfo & { enabled: boolean; travelCountry?: string; travelDates?: string; companion?: string }; // İzin verilen / Çocuk / Yararlanıcı
+
+  subject: string; // Konu
+  bodyText: string; // Hukuki rıza ve taahhüt metni
+  additionalClauses: string[]; // Ek özel şartlar / maddeler
+
+  // Onay & İmza
+  signatureLayout: SignatureLayout;
+  includeNotaryNote: boolean;
+  notaryNoteText: string;
+
+  // Tasarım ve Biçimlendirme
+  emblem: EmblemType;
+  borderStyle: BorderStyle;
+  docFont: DocFont;
+  fontSize: number; // 12 - 16 pt
+  lineSpacing: number; // 1.3 - 1.8
+  showQrCode: boolean;
+  showBarcode: boolean;
+  showDocNo: boolean;
 }
 
-export interface MuvafakatEdenBilgileri {
-  sifat: 'borclu' | 'ucuncu_sahis' | 'kefil' | 'sirket_yetkilisi';
-  adSoyad: string;
-  tcknVkn: string;
-  unvan?: string;
-  sgkSicilNo?: string;
-  adres: string;
-  telefon?: string;
-  gorevUnvan?: string;
-  isyeriUnvan?: string;
-}
-
-export interface AsilBorcluBilgileri {
-  unvan: string;
-  tcknVkn: string;
-  sgkSicilNo: string;
-  adres: string;
-  borcDonemi: string;
-  borcTutari: string;
-  takipNo: string;
-}
-
-export interface BelgeAyarlari {
-  formKodu: string; // "EK-9" vb.
-  formKoduGoster: boolean;
-  kurumAdi: string;
-  altBirimAdi: string;
-  evrakTarihi: string;
-  evrakSayisi: string;
-  konu: string;
-  dosyaNo: string;
-  borcTutari: string;
-  borcDonemi: string;
-  amblemTuru: 'tc' | 'sgk' | 'adalet' | 'yok';
-  yaziTipi: 'serif' | 'sans';
-  yaziBoyutu: 'sm' | 'base' | 'lg';
-  satirAraligi: 'sik' | 'normal' | 'genis';
-  antetVarMi: boolean;
-  tarihGoster: boolean;
-  ikinciImzaVarMi: boolean;
-  huzurdaImzaZaptiVarMi: boolean;
-  teminatTablosuGoster: boolean;
-  sayfaFormati?: string;
-}
-
-export interface SGKIcraMemurlari {
-  icraMemuru: {
-    adSoyad: string;
-    sicilNo: string;
-    unvan: string;
-  };
-  sorumluMemur: {
-    adSoyad: string;
-    sicilNo: string;
-    unvan: string;
-  };
-}
-
-export interface MuvafakatnameBelgeData {
-  sablonId: string;
-  baslik: string;
-  ayarlar: BelgeAyarlari;
-  borclu: MuvafakatEdenBilgileri; // Muvafakat veren kişi/kurum
-  asilBorclu?: AsilBorcluBilgileri; // 3. şahıs muvafakatinde asıl borçlu
-  teminat: TeminatBilgisi;
-  metin: string;
-  ekNotlar?: string;
-  imzalayan1: {
-    adSoyad: string;
-    unvan: string;
-  };
-  imzalayan2?: {
-    adSoyad: string;
-    unvan: string;
-  };
-  sgkZapti?: SGKIcraMemurlari;
+export interface DocumentTemplate {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  data: Partial<MuvafakatnameDocument>;
 }

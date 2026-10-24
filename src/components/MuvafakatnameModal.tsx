@@ -1,28 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { MuvafakatnameDocument } from '../types/muvafakatname';
+import { OFFICIAL_TEMPLATES } from '../data/templates';
+import { A4Document } from './A4Document';
+import { EditorPanel } from './EditorPanel';
+import { PasteExampleModal } from './PasteExampleModal';
+import { printDirectDocument, exportToPdf } from '../utils/pdfExport';
 import {
-  X,
-  Printer,
-  Copy,
-  Check,
-  FileSignature,
   ZoomIn,
   ZoomOut,
-  Sparkles,
-  Download,
+  Copy,
+  RotateCcw,
+  Check,
   Eye,
   Edit3,
-  FileText,
-  RotateCcw,
+  HelpCircle,
+  FileCheck2,
+  AlertCircle,
+  Printer,
+  Download,
+  X,
+  Sparkles,
+  FileSignature
 } from 'lucide-react';
-import {
-  MuvafakatnameBelgeData,
-  MuvafakatnameTemplate,
-} from '../types/muvafakatname';
-import { MUVAFAKATNAME_TEMPLATES } from '../data/templates';
-import { EditorPanel } from './EditorPanel';
-import { A4Document } from './A4Document';
-import { PasteExampleModal } from './PasteExampleModal';
-import { exportToWord } from '../utils/pdfExport';
 
 interface MuvafakatnameModalProps {
   isOpen: boolean;
@@ -42,411 +41,476 @@ export const MuvafakatnameModal: React.FC<MuvafakatnameModalProps> = ({
   onClose,
   initialBorrower,
 }) => {
+  const [doc, setDoc] = useState<MuvafakatnameDocument>(() => {
+    // 1. Priority: localStorage draft
+    try {
+      const saved = localStorage.getItem('muvafakatname_doc_draft');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.title || parsed.sgkDetails || parsed.templateType)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Draft load error:', e);
+    }
+
+    const baseTemplate = OFFICIAL_TEMPLATES[0].data as MuvafakatnameDocument;
+
+    // Prefill with initialBorrower if available
+    const initialInstitution = initialBorrower?.ilMudurlugu
+      ? `${initialBorrower.ilMudurlugu.toUpperCase()} SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜ${initialBorrower.sgkMerkezi ? ' / ' + initialBorrower.sgkMerkezi.toUpperCase() + ' SOSYAL GÜVENLİK MERKEZİNE' : 'NE'}`
+      : baseTemplate.institution;
+
+    return {
+      ...baseTemplate,
+      id: 'doc-initial',
+      institution: initialInstitution,
+      sgkDetails: {
+        ...(baseTemplate.sgkDetails || ({} as any)),
+        debtorName: initialBorrower?.unvan || '',
+      },
+      grantor: {
+        ...(baseTemplate.grantor || ({} as any)),
+        address: initialBorrower?.isyeriAdresi || '',
+        tcNumber: initialBorrower?.tcknVkn || '',
+      },
+    };
+  });
+
+  const [zoom, setZoom] = useState<number>(0.85);
+  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [mobileView, setMobileView] = useState<'editor' | 'preview'>('preview');
+  const a4Ref = useRef<HTMLDivElement>(null);
+
+  // Sync active document state to localStorage
+  useEffect(() => {
+    if (isOpen) {
+      try {
+        localStorage.setItem('muvafakatname_doc_draft', JSON.stringify(doc));
+      } catch (e) {
+        console.warn('Draft save error:', e);
+      }
+    }
+  }, [doc, isOpen]);
+
+  // Update debtor info if borrower changes and doc is empty
+  useEffect(() => {
+    if (isOpen && initialBorrower) {
+      setDoc((prev) => {
+        const needsDebtorUpdate = !prev.sgkDetails?.debtorName && initialBorrower.unvan;
+        const needsInstUpdate = (!prev.institution || prev.institution === 'SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜNE') && initialBorrower.ilMudurlugu;
+        const needsGrantorUpdate = !prev.grantor?.address && initialBorrower.isyeriAdresi;
+
+        if (needsDebtorUpdate || needsInstUpdate || needsGrantorUpdate) {
+          const newInst = initialBorrower.ilMudurlugu
+            ? `${initialBorrower.ilMudurlugu.toUpperCase()} SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜ${initialBorrower.sgkMerkezi ? ' / ' + initialBorrower.sgkMerkezi.toUpperCase() + ' SOSYAL GÜVENLİK MERKEZİNE' : 'NE'}`
+            : prev.institution;
+
+          return {
+            ...prev,
+            institution: needsInstUpdate ? newInst : prev.institution,
+            sgkDetails: {
+              ...(prev.sgkDetails || ({} as any)),
+              debtorName: prev.sgkDetails?.debtorName || initialBorrower.unvan || '',
+            },
+            grantor: {
+              ...prev.grantor,
+              address: prev.grantor?.address || initialBorrower.isyeriAdresi || '',
+              tcNumber: prev.grantor?.tcNumber || initialBorrower.tcknVkn || '',
+            },
+          };
+        }
+        return prev;
+      });
+    }
+  }, [isOpen, initialBorrower]);
+
   if (!isOpen) return null;
 
-  // Varsayılan şablon: EK-9 (SGK 2024/12 Genelgesi)
-  const defaultTemplate = MUVAFAKATNAME_TEMPLATES[0];
-
-  const [documentData, setDocumentData] = useState<MuvafakatnameBelgeData>(() => ({
-    sablonId: defaultTemplate.id,
-    baslik: defaultTemplate.baslik,
-    ayarlar: {
-      formKodu: defaultTemplate.formKodu || 'EK-9',
-      formKoduGoster: true,
-      kurumAdi: 'T.C. SOSYAL GÜVENLİK KURUMU BAŞKANLIĞI',
-      altBirimAdi: `${initialBorrower?.ilMudurlugu || 'ORDU'} SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜ / ${initialBorrower?.sgkMerkezi || 'ALTINORDU'} SOSYAL GÜVENLİK MERKEZİ`,
-      evrakTarihi: new Date().toLocaleDateString('tr-TR'),
-      evrakSayisi: 'E-6183/2026/1024',
-      konu: defaultTemplate.varsayilanKonu,
-      dosyaNo: '2026/1055706-İCRA',
-      borcTutari: '385.450,00 TL',
-      borcDonemi: '2025/1 - 2025/12',
-      amblemTuru: 'tc',
-      yaziTipi: 'serif',
-      yaziBoyutu: 'base',
-      satirAraligi: 'normal',
-      antetVarMi: true,
-      tarihGoster: true,
-      ikinciImzaVarMi: true,
-      huzurdaImzaZaptiVarMi: true,
-      teminatTablosuGoster: true,
-      sayfaFormati: 'genelge_matbu',
-    },
-    borclu: {
-      sifat: 'ucuncu_sahis',
-      adSoyad: 'KEMAL ŞAHİN',
-      tcknVkn: '48920154812',
-      unvan: 'Taşınmaz Maliki (3. Şahıs)',
-      sgkSicilNo: initialBorrower?.sigortaNo || '2 4324 01 01 1055706 052 20-30',
-      adres: 'Akyazı Mah. 842. Sok. No:14 D:5 - Ordu Altınordu',
-      telefon: '0532 555 12 34',
-    },
-    asilBorclu: {
-      unvan: initialBorrower?.unvan || 'ÖZTÜRK İNŞAAT VE TAAHHÜT TİC. LTD. ŞTİ.',
-      tcknVkn: initialBorrower?.tcknVkn || '24324010110',
-      sgkSicilNo: initialBorrower?.sigortaNo || '2 4324 01 01 1055706 052 20-30',
-      adres: initialBorrower?.isyeriAdresi || 'Yeni Mah. Atatürk Bulvarı No:88/A Altınordu / Ordu',
-      borcDonemi: '2025/Ocak - 2025/Aralık',
-      borcTutari: '385.450,00 TL',
-      takipNo: '2026/1055706-İCRA',
-    },
-    teminat: defaultTemplate.teminatVarsayilan || {
-      tur: 'gayrimenkul',
-      il: 'ORDU',
-      ilce: 'ALTINORDU',
-      mahalleKoy: 'YENİ MAHALLE',
-      ada: '1024',
-      parsel: '18',
-      bagimsizBolum: '4',
-      yuzolcumu: '125 m²',
-      nitelik: 'Mesken (Daire)',
-      tapuMaliki: 'KEMAL ŞAHİN',
-      hisseOrani: 'Tam (1/1)',
-    },
-    metin: defaultTemplate.metin,
-    ekNotlar: '',
-    imzalayan1: {
-      adSoyad: 'KEMAL ŞAHİN',
-      unvan: defaultTemplate.imzaBaslik1,
-    },
-    imzalayan2: {
-      adSoyad: initialBorrower?.unvan || 'ÜMİT ÖZTÜRK',
-      unvan: defaultTemplate.imzaBaslik2 || 'Asıl Borçlu Şirket Yetkilisi',
-    },
-    sgkZapti: {
-      icraMemuru: {
-        adSoyad: 'İcra Memuru',
-        sicilNo: '18452',
-        unvan: 'İcra Memuru',
-      },
-      sorumluMemur: {
-        adSoyad: 'Sorumlu Şef / Yetkili',
-        sicilNo: '12904',
-        unvan: 'Sorumlu İcra Memuru',
-      },
-    },
-  }));
-
-  const [zoomLevel, setZoomLevel] = useState<number>(100);
-  const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('editor');
-  const [copied, setCopied] = useState(false);
-  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
-
-  // Şablon yükleme
-  const handleLoadTemplate = (template: MuvafakatnameTemplate) => {
-    setDocumentData((prev) => ({
-      ...prev,
-      sablonId: template.id,
-      baslik: template.baslik,
-      metin: template.metin,
-      ayarlar: {
-        ...prev.ayarlar,
-        formKodu: template.formKodu || 'EK-9',
-        formKoduGoster: !!template.formKodu,
-        konu: template.varsayilanKonu,
-        huzurdaImzaZaptiVarMi: template.huzurdaImzaVarMi ?? prev.ayarlar.huzurdaImzaZaptiVarMi,
-      },
-      teminat: template.teminatVarsayilan || prev.teminat,
-      imzalayan1: {
-        ...prev.imzalayan1,
-        unvan: template.imzaBaslik1,
-      },
-      imzalayan2: {
-        adSoyad: prev.imzalayan2?.adSoyad || prev.asilBorclu?.unvan || 'Yetkili Makam Onayı',
-        unvan: template.imzaBaslik2 || 'Yetkili Makam Onayı',
-      },
-    }));
+  const handlePrint = () => {
+    printDirectDocument('a4-sheet');
   };
 
-  // Aktif SGK Borçlusunu forma aktar
-  const handleLoadSampleBorrower = () => {
-    if (!initialBorrower) return;
-    setDocumentData((prev) => ({
-      ...prev,
-      asilBorclu: {
-        unvan: initialBorrower.unvan || prev.asilBorclu?.unvan || '',
-        tcknVkn: initialBorrower.tcknVkn || prev.asilBorclu?.tcknVkn || '',
-        sgkSicilNo: initialBorrower.sigortaNo || prev.asilBorclu?.sgkSicilNo || '',
-        adres: initialBorrower.isyeriAdresi || prev.asilBorclu?.adres || '',
-        borcDonemi: prev.asilBorclu?.borcDonemi || '2025 Yılı',
-        borcTutari: prev.ayarlar.borcTutari || '385.450,00 TL',
-        takipNo: prev.ayarlar.dosyaNo || '2026/1055706-İCRA',
-      },
-      ayarlar: {
-        ...prev.ayarlar,
-        altBirimAdi: `${initialBorrower.ilMudurlugu || 'ORDU'} SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜ / ${initialBorrower.sgkMerkezi || 'ALTINORDU'} SOSYAL GÜVENLİK MERKEZİ`,
-      },
-      imzalayan2: {
-        adSoyad: initialBorrower.unvan || prev.imzalayan2?.adSoyad || '',
-        unvan: 'Asıl Borçlu Yetkilisi',
-      },
-    }));
+  const handleDownloadPdf = async () => {
+    setIsDownloadingPdf(true);
+    try {
+      const filename = `SGK_Ek9_Muvafakatname_${doc.grantor?.fullName ? doc.grantor.fullName.replace(/\s+/g, '_') : 'Belgesi'}.pdf`;
+      await exportToPdf('a4-sheet', filename);
+    } catch (err) {
+      console.error('PDF export error:', err);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   };
 
-  // Harici veri / Örnek uygulama
-  const handleApplyImportedData = (partial: Partial<MuvafakatnameBelgeData>) => {
-    setDocumentData((prev) => ({
-      ...prev,
-      ...partial,
-      ayarlar: {
-        ...prev.ayarlar,
-        ...(partial.ayarlar || {}),
-      },
-      borclu: {
-        ...prev.borclu,
-        ...(partial.borclu || {}),
-      },
-      asilBorclu: {
-        ...(prev.asilBorclu || {
-          unvan: '',
-          tcknVkn: '',
-          sgkSicilNo: '',
-          adres: '',
-          borcDonemi: '',
-          borcTutari: '',
-          takipNo: '',
-        }),
-        ...(partial.asilBorclu || {}),
-      },
-      teminat: {
-        ...prev.teminat,
-        ...(partial.teminat || {}),
-      },
-      imzalayan1: {
-        ...prev.imzalayan1,
-        ...(partial.imzalayan1 || {}),
-      },
-      imzalayan2: {
-        ...(prev.imzalayan2 || { adSoyad: '', unvan: '' }),
-        ...(partial.imzalayan2 || {}),
-      },
-    }));
-  };
-
-  // Metin kopyalama
   const handleCopyText = () => {
-    const fullText = `
-${documentData.ayarlar.formKoduGoster ? `[${documentData.ayarlar.formKodu}]\n` : ''}${documentData.ayarlar.kurumAdi}
-${documentData.ayarlar.altBirimAdi}
+    let textOutput = '';
+    if (doc.templateType === 'sgk_ek9') {
+      const spouseBlock = doc.sgkDetails?.includeSpouseConsent
+        ? `\nMALİKİN EŞİ (TMK m.194 EŞ MUVAFAKATİ):\nAdı Soyadı: ${doc.sgkDetails?.spouseFullName || '................................'}\nTC Kimlik No: ${doc.sgkDetails?.spouseTcNumber || '................................'}\nİmza: (İmza)\n\nEŞİNİN MUVAFAKAT BEYANI (TMK m. 194):\n${doc.sgkDetails?.spouseConsentText || 'Yukarıda kimlik ve adres bilgileri yer alan eşim tarafından Sosyal Güvenlik Kurumuna olan borcuna karşılık teminat olarak gösterilen gayrimenkulün haczedilmesine ve teminat gösterilmesine serbest irademle açıkça muvafakat ediyorum.'}\n`
+        : '';
 
-Tarih: ${documentData.ayarlar.evrakTarihi}
-Dosya / Takip No: ${documentData.ayarlar.dosyaNo}
-Konu: ${documentData.ayarlar.konu}
+      textOutput = `
+                                                                           ${doc.annexCode || 'Ek-9'}
+        ${doc.title || 'ÜÇÜNCÜ ŞAHISLAR TARAFINDAN VERİLECEK MUVAFAKATNAME ÖRNEĞİ'}
 
-${documentData.baslik}
+                      ${doc.institution || '........................... SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜNE'}
 
-${documentData.metin}
+${doc.sgkDetails?.debtorName ? doc.sgkDetails.debtorName + "’nin" : "..................................’nin"} Sosyal Güvenlik Kurumuna olan ${doc.sgkDetails?.debtPeriod || "..............."} dönemi/ayına ilişkin ${doc.sgkDetails?.debtAmount ? doc.sgkDetails.debtAmount + " TL" : ".................................. TL"} tutarında ${doc.sgkDetails?.debtType || "........................."} borcuna ve bu borca bu tarihten ödenmesine kadar geçecek süre için işleyecek fer’ilerine karşılık aşağıda özellikleri yazılı menkul /gayrimenkul malı 6183 sayılı Kanunun 10 uncu maddesinin beşinci fıkrası gereğince teminat olarak gösteriyor ve söz konusu malların Sosyal Güvenlik Kurumu tarafından haczedilmesine muvafakat ediyorum. Bu konuda herhangi bir itirazda bulunmayacağımı beyan ve taahhüt ederim.
 
-Muvafakat Veren:
-${documentData.borclu.adSoyad} (${documentData.borclu.tcknVkn})
-İmza: _______________________
-    `.trim();
+                                                                 ${doc.date || '..../...../.....'}
+                                                                 ${doc.grantor.fullName || 'Adı Soyadı'}
+                                                                 ${doc.grantor.title || 'Ünvanı'}
+                                                                 (İmza)
 
-    navigator.clipboard.writeText(fullText);
+Adres           : ${doc.grantor.address || '....................................................................'}
+TC Kimlik No    : ${doc.grantor.tcNumber || '................................'}
+Vergi Kimlik No : ${doc.grantor.taxNumber || '................................'}
+${doc.sgkDetails?.propertyDetails ? `\nTeminat Malı    : ${doc.sgkDetails.propertyDetails}` : ''}
+${spouseBlock}
+${doc.sgkDetails?.includeSpouseConsent ? 'Bu muvafakatname, malik ve eşi huzurumuzda imza altına alınmıştır.' : 'Bu muvafakatname, huzurumuzda imza altına alınmıştır.'}
+
+İcra Memuru                                            Sorumlu İcra Memuru
+${doc.sgkDetails?.icraOfficer1Name || ''}                              ${doc.sgkDetails?.icraOfficer2Name || ''}
+(İmza)                                                 (İmza)
+      `.trim();
+    } else {
+      textOutput = `
+${doc.institution}
+
+${doc.title}
+${doc.subtitle ? doc.subtitle + '\n' : ''}
+Belge No: ${doc.documentNo} | Tarih: ${doc.date} | Yer: ${doc.city}
+
+MUVAFAKAT VEREN:
+Ad Soyad: ${doc.grantor.fullName} (T.C.: ${doc.grantor.tcNumber})
+Sıfatı / Yakınlığı: ${doc.grantor.relation || '-'}
+Adres: ${doc.grantor.address || '-'}
+
+${doc.grantor2?.enabled ? `MUVAFAKAT VEREN (2):\nAd Soyad: ${doc.grantor2.fullName} (T.C.: ${doc.grantor2.tcNumber})\nSıfatı: ${doc.grantor2.relation || '-'}\n` : ''}
+${doc.grantee?.enabled ? `LEHİNE MUVAFAKAT EDİLEN:\nAd Soyad: ${doc.grantee.fullName} (T.C.: ${doc.grantee.tcNumber})\nDoğum Tarihi: ${doc.grantee.birthDate || '-'}\n` : ''}
+
+KONU: ${doc.subject}
+
+BEYAN VE TAAHHÜT:
+${doc.bodyText}
+
+${doc.additionalClauses && doc.additionalClauses.length > 0 ? '\nÖZEL HÜKÜMLER:\n' + doc.additionalClauses.map((c, i) => `${i + 1}. ${c}`).join('\n') : ''}
+
+İşbu muvafakatname yetkili resmi mercilere ibraz edilmek üzere tanzim edilmiştir.
+      `.trim();
+    }
+
+    navigator.clipboard.writeText(textOutput);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Word (.doc) olarak indirme
-  const handleDownloadWord = () => {
-    const filename = `${documentData.ayarlar.formKodu || 'EK-9'}_${(documentData.borclu.adSoyad || 'muvafakatname').replace(/\s+/g, '_')}.doc`;
-    exportToWord(documentData, filename);
+  const handleAutoFit = () => {
+    const totalChars = doc.bodyText.length + (doc.additionalClauses?.join(' ').length || 0);
+
+    if (totalChars > 900) {
+      setDoc((prev) => ({
+        ...prev,
+        fontSize: 12.5,
+        lineSpacing: 1.35,
+      }));
+    } else if (totalChars > 600) {
+      setDoc((prev) => ({
+        ...prev,
+        fontSize: 13.5,
+        lineSpacing: 1.42,
+      }));
+    } else {
+      setDoc((prev) => ({
+        ...prev,
+        fontSize: 14,
+        lineSpacing: 1.5,
+      }));
+    }
   };
 
-  // Yazdırma (Ctrl+P / Doğrudan A4 Print)
-  const handlePrint = () => {
-    document.body.classList.add('body-printing-muvafakatname');
-    window.print();
-    setTimeout(() => {
-      document.body.classList.remove('body-printing-muvafakatname');
-    }, 1000);
+  const handleReset = () => {
+    if (window.confirm('Belgeyi varsayılan resmi şablona sıfırlamak istiyor musunuz?')) {
+      setDoc({
+        ...(OFFICIAL_TEMPLATES[0].data as MuvafakatnameDocument),
+        id: 'doc-reset-' + Date.now(),
+      });
+    }
   };
+
+  const totalLength = doc.bodyText.length + (doc.additionalClauses?.reduce((acc, c) => acc + c.length, 0) || 0);
+  const isTooLong = totalLength > 1150 && doc.fontSize >= 14;
 
   return (
-    <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-sm overflow-hidden animate-in fade-in duration-200">
-        <div
-          className="w-full max-w-7xl h-[94vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden"
-          style={{
-            backgroundColor: 'var(--bg-secondary)',
-            borderColor: 'var(--border-primary)',
-            color: 'var(--text-primary)',
-          }}
-        >
-          {/* MODAL ÜST ÇUBUK */}
-          <div
-            className="px-6 py-4 border-b flex items-center justify-between flex-wrap gap-3 shrink-0"
-            style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--bg-elevated)' }}
+    <div className="fixed inset-0 z-50 flex flex-col bg-stone-100 text-stone-900 font-sans selection:bg-stone-900 selection:text-white overflow-hidden animate-in fade-in duration-150">
+      {/* Universal Top Bar with Branding & Actions */}
+      <header className="flex items-center justify-between gap-4 px-6 py-3 bg-white border-b border-stone-200 no-print shrink-0 shadow-xs">
+        {/* Left: Brand title & badge */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="p-2 rounded-xl bg-teal-600 text-white shadow-xs">
+            <FileSignature className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-black tracking-tight text-stone-900 whitespace-nowrap">
+                Resmi Muvafakatname ve Belge Düzenleyici
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-500/10 text-teal-700 border border-teal-500/20">
+                SGK EK-9 Matbu Standart
+              </span>
+            </div>
+            <p className="text-[11px] text-stone-500 hidden sm:block">
+              6183 sayılı Kanun m. 10/5 üçüncü şahıs teminatı &amp; A4 resmi belge editörü
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Functional Action Buttons */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isDownloadingPdf}
+            className="px-3.5 py-2 text-xs font-bold text-stone-700 bg-white border border-stone-300 rounded-xl hover:bg-stone-50 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-xs"
+            title="A4 formatında PDF olarak indir"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
-                <FileSignature className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold tracking-tight text-slate-800 dark:text-slate-100">
-                    Resmî Muvafakatname ve EK-9 Belge Düzenleyici
-                  </h2>
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full font-black uppercase bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
-                    EK-9 (Deneme Aşamasında)
-                  </span>
+            <Download className="w-3.5 h-3.5 text-stone-600" />
+            <span className="hidden sm:inline">{isDownloadingPdf ? 'İndiriliyor...' : 'PDF İndir'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="px-4 py-2 text-xs font-bold text-white bg-stone-900 hover:bg-stone-800 rounded-xl transition-all whitespace-nowrap flex items-center gap-2 shadow-sm cursor-pointer hover:shadow-md"
+            title="Belgeyi doğrudan yazıcıya gönder (Ctrl + P)"
+          >
+            <Printer className="w-4 h-4 text-amber-300" />
+            <span>YAZDIR (A4)</span>
+          </button>
+
+          {/* Close Modal Button */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 transition-colors cursor-pointer ml-1"
+            title="Kapat ve Tecil Portalına Dön"
+            aria-label="Kapat"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Tab Switcher */}
+      <div className="md:hidden flex items-center justify-center p-2 bg-stone-200 border-b border-stone-300 gap-2 no-print shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileView('editor')}
+          className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 ${
+            mobileView === 'editor'
+              ? 'bg-white text-stone-900 shadow-xs'
+              : 'text-stone-700 hover:bg-stone-100'
+          }`}
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+          <span>Girişler &amp; Düzenle</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileView('preview')}
+          className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 ${
+            mobileView === 'preview'
+              ? 'bg-white text-stone-900 shadow-xs'
+              : 'text-stone-700 hover:bg-stone-100'
+          }`}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span>A4 Belge Görünümü</span>
+        </button>
+      </div>
+
+      {/* Main Workspace: Split Pane on Desktop */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        {/* LEFT PANE: Editor & Form Controls (Strictly hidden during print!) */}
+        <div
+          className={`w-full md:w-[440px] lg:w-[480px] shrink-0 h-full border-r border-stone-200 no-print overflow-hidden ${
+            mobileView === 'preview' ? 'hidden md:block' : 'block'
+          }`}
+        >
+          <EditorPanel
+            doc={doc}
+            onChange={setDoc}
+            onOpenPasteModal={() => setIsPasteModalOpen(true)}
+            onAutoFit={handleAutoFit}
+          />
+        </div>
+
+        {/* RIGHT PANE: Live A4 Document Canvas Preview */}
+        <div
+          className={`flex-1 flex flex-col bg-stone-200/70 overflow-hidden ${
+            mobileView === 'editor' ? 'hidden md:flex' : 'flex'
+          }`}
+        >
+          {/* Canvas Toolbar */}
+          <div className="px-6 py-2 bg-white border-b border-stone-200 flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">
+            {/* Page Fit Status */}
+            <div className="flex items-center gap-2 text-xs">
+              {isTooLong ? (
+                <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>Sayfa 1 A4 sınırını aşabilir.</span>
+                  <button
+                    type="button"
+                    onClick={handleAutoFit}
+                    className="underline font-bold text-amber-900 hover:text-amber-950 ml-1 cursor-pointer"
+                  >
+                    Sığdır
+                  </button>
                 </div>
-                <p className="text-xs text-slate-500 font-medium">
-                  SGK 2024/12 EK-9 3. şahıs muvafakatnamesi ve resmî tecil belgeleri
-                </p>
-              </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 font-medium">
+                  <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>A4 Formatına Tam Uyumlu (%100 Tek Sayfa)</span>
+                </div>
+              )}
             </div>
 
-            {/* EYLEMLER VE BUTONLAR */}
+            {/* Canvas Actions: Zoom Controls, Copy & Reset */}
             <div className="flex items-center gap-2">
-              {/* Mobil Tab Seçici */}
-              <div className="lg:hidden inline-flex p-1 rounded-xl border bg-slate-100 dark:bg-slate-800" style={{ borderColor: 'var(--border-primary)' }}>
+              {/* Zoom Controls */}
+              <div className="flex items-center gap-0.5 bg-stone-100 rounded-lg p-0.5 border border-stone-200 text-xs">
                 <button
                   type="button"
-                  onClick={() => setMobileTab('editor')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all flex items-center gap-1 ${
-                    mobileTab === 'editor' ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Düzenle</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobileTab('preview')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all flex items-center gap-1 ${
-                    mobileTab === 'preview' ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>A4 Önizle</span>
-                </button>
-              </div>
-
-              {/* Yakınlaştır / Uzaklaştır */}
-              <div className="hidden sm:flex items-center border rounded-xl overflow-hidden" style={{ borderColor: 'var(--border-primary)' }}>
-                <button
-                  type="button"
-                  onClick={() => setZoomLevel((z) => Math.max(65, z - 10))}
-                  className="p-1.5 hover:bg-slate-500/10 transition-colors text-slate-600 dark:text-slate-300 cursor-pointer"
+                  onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
+                  className="p-1.5 text-stone-600 hover:text-stone-900 rounded hover:bg-stone-200 transition-colors cursor-pointer"
                   title="Uzaklaştır"
                 >
                   <ZoomOut className="w-3.5 h-3.5" />
                 </button>
-                <span className="px-2 text-[11px] font-bold text-slate-500 font-mono">%{zoomLevel}</span>
+                <span className="px-2 font-mono text-[11px] font-semibold text-stone-700">
+                  %{Math.round(zoom * 100)}
+                </span>
                 <button
                   type="button"
-                  onClick={() => setZoomLevel((z) => Math.min(130, z + 10))}
-                  className="p-1.5 hover:bg-slate-500/10 transition-colors text-slate-600 dark:text-slate-300 cursor-pointer"
+                  onClick={() => setZoom((z) => Math.min(1.3, z + 0.1))}
+                  className="p-1.5 text-stone-600 hover:text-stone-900 rounded hover:bg-stone-200 transition-colors cursor-pointer"
                   title="Yakınlaştır"
                 >
                   <ZoomIn className="w-3.5 h-3.5" />
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setZoom(0.85)}
+                  className="px-1.5 py-1 text-[11px] font-medium text-stone-600 hover:text-stone-900 rounded hover:bg-stone-200 transition-colors cursor-pointer"
+                  title="Varsayılan Boyut"
+                >
+                  Sıfırla
+                </button>
               </div>
 
-              {/* Hazır Örnekler & İçe Aktar Butonu */}
-              <button
-                type="button"
-                onClick={() => setIsPasteModalOpen(true)}
-                className="px-3 py-2 rounded-xl border border-teal-500/40 bg-teal-500/5 hover:bg-teal-500/15 text-teal-700 dark:text-teal-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                title="Hazır örnekler yükleyin, Word belgesi aktarın veya kopyalanan metni yapıştırın"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Örnekler &amp; İçe Aktar</span>
-              </button>
-
-              {/* Word (.doc) Olarak İndir */}
-              <button
-                type="button"
-                onClick={handleDownloadWord}
-                className="px-3 py-2 rounded-xl border border-blue-500/40 bg-blue-500/5 hover:bg-blue-500/15 text-blue-700 dark:text-blue-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                title="Word (.doc) formatında bilgisayarınıza indirin"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Word İndir</span>
-              </button>
-
-              {/* Metni Kopyala */}
+              {/* Copy Plain Text */}
               <button
                 type="button"
                 onClick={handleCopyText}
-                className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-500/10 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="Tüm belge metnini panoya kopyala"
+                className="px-2.5 py-1.5 bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                title="Metni Panoya Kopyala"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">{copied ? 'Kopyalandı' : 'Kopyala'}</span>
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700 font-semibold hidden sm:inline">Kopyalandı</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Kopyala</span>
+                  </>
+                )}
               </button>
 
-              {/* Yazdır / PDF İndir */}
+              {/* Reset to template */}
               <button
                 type="button"
-                onClick={handlePrint}
-                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
-                title="A4 Belgeyi Doğrudan Yazdır veya PDF Olarak Kaydet"
+                onClick={handleReset}
+                className="p-1.5 text-stone-500 hover:text-stone-800 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                title="Varsayılan Şablona Sıfırla"
               >
-                <Printer className="w-4 h-4" />
-                <span>Yazdır / PDF</span>
-              </button>
-
-              {/* Kapat Butonu */}
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-2 rounded-xl hover:bg-slate-500/10 transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer ml-1"
-                title="Pencereyi Kapat"
-              >
-                <X className="w-5 h-5" />
+                <RotateCcw className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
-          {/* MODAL GÖVDE: SOLDA EDİTÖR, SAĞDA A4 CANLI ÖNİZLEME */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* SOL PANEL: DÜZENLEME PANELİ */}
-            <div
-              className={`w-full lg:w-[460px] xl:w-[500px] p-4 sm:p-5 overflow-y-auto border-r shrink-0 ${
-                mobileTab === 'preview' ? 'hidden lg:block' : 'block'
-              }`}
-              style={{
-                borderColor: 'var(--border-primary)',
-                backgroundColor: 'var(--bg-secondary)',
-              }}
-            >
-              <EditorPanel
-                data={documentData}
-                onChange={setDocumentData}
-                onLoadTemplate={handleLoadTemplate}
-                onLoadSampleBorrower={handleLoadSampleBorrower}
-                onOpenPasteModal={() => setIsPasteModalOpen(true)}
-              />
-            </div>
-
-            {/* SAĞ PANEL: A4 CANLI GÖRÜNÜM & BASKI ALANI */}
-            <div
-              className={`flex-1 overflow-auto bg-slate-200/90 dark:bg-slate-950/90 p-4 sm:p-8 flex justify-center items-start ${
-                mobileTab === 'editor' ? 'hidden lg:flex' : 'flex'
-              }`}
-            >
-              <div
-                style={{
-                  transform: `scale(${zoomLevel / 100})`,
-                  transformOrigin: 'top center',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                <A4Document data={documentData} />
-              </div>
+          {/* Scrollable A4 Viewport */}
+          <div
+            id="a4-viewport-wrapper"
+            ref={a4Ref}
+            className="flex-1 overflow-auto p-4 sm:p-8 flex justify-center items-start bg-stone-300/50"
+          >
+            <div className="py-2 flex flex-col items-center">
+              <A4Document doc={doc} zoom={zoom} onChange={setDoc} isEditable={true} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Hazır Örnekler, Word Belgesi Yükleme ve Akıllı Metin Modal */}
+      {/* Explanatory Legislation Footer */}
+      <footer id="help" className="border-t border-stone-200 bg-white py-3.5 px-6 no-print shrink-0">
+        <div className="max-w-6xl mx-auto space-y-2">
+          <div className="flex items-center gap-2 text-stone-900 font-bold text-xs">
+            <HelpCircle className="w-4 h-4 text-stone-700" />
+            <span>Türkiye Cumhuriyeti Hukuk Mevzuatında Muvafakatname Standartları</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[11px] text-stone-600">
+            <div className="space-y-0.5">
+              <div className="font-semibold text-stone-900">1. SGK Ek-9 &amp; 6183 S.K. m.10/5</div>
+              <p className="leading-relaxed">
+                Sosyal Güvenlik Kurumuna olan borçlarda 3. şahıs teminatında İcra Takip Haciz Yönetmeliği Ek-9 formu kullanılır.
+              </p>
+            </div>
+
+            <div className="space-y-0.5">
+              <div className="font-semibold text-stone-900">2. Gayrimenkulde TMK m. 194 Eş Rızası</div>
+              <p className="leading-relaxed">
+                Teminat gösterilen mal gayrimenkul (özellikle mesken/konut) ise eşin açık rıza ve muvafakat imzası kanunen zorunludur.
+              </p>
+            </div>
+
+            <div className="space-y-0.5">
+              <div className="font-semibold text-stone-900">3. Doğrudan A4 Yazdırma &amp; Word Düzenleme</div>
+              <p className="leading-relaxed">
+                Belge üzerindeki tüm alanlara Word gibi doğrudan tıklayarak yazabilir, boşlukları interaktif kutucukla anında doldurabilirsiniz.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between text-[10px] text-stone-500">
+            <span>© {new Date().getFullYear()} Resmi Muvafakatname ve Belge Düzenleyici · A4 Baskı Standardı</span>
+            <div className="flex items-center gap-3">
+              <span>A4 Boyutu: 210 × 297 mm</span>
+              <span>·</span>
+              <span>Doğrudan Yazıcı &amp; Islak İmza Formatı</span>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {/* Paste Example Modal */}
       <PasteExampleModal
         isOpen={isPasteModalOpen}
         onClose={() => setIsPasteModalOpen(false)}
-        onApplyData={handleApplyImportedData}
+        onApply={(extracted) => {
+          setDoc((prev) => ({
+            ...prev,
+            ...extracted,
+          }));
+        }}
+        currentDoc={doc}
       />
-    </>
+    </div>
   );
 };

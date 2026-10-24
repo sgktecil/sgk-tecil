@@ -1,566 +1,470 @@
-import React, { useState } from 'react';
-import {
-  X,
-  Clipboard,
-  FileText,
-  Upload,
-  Sparkles,
-  Check,
-  AlertCircle,
-  FileSpreadsheet,
-  ArrowRight,
-} from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { MuvafakatnameDocument } from '../types/muvafakatname';
+import { FileText, Sparkles, Check, ArrowRight, X, Upload, FileUp, Loader2 } from 'lucide-react';
 import mammoth from 'mammoth';
-import { MuvafakatnameBelgeData, TeminatBilgisi } from '../types/muvafakatname';
-import { MUVAFAKATNAME_TEMPLATES } from '../data/templates';
 
 interface PasteExampleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onApplyData: (newData: Partial<MuvafakatnameBelgeData>) => void;
-}
-
-interface ExamplePreset {
-  id: string;
-  title: string;
-  badge: string;
-  desc: string;
-  data: Partial<MuvafakatnameBelgeData>;
+  onApply: (extracted: Partial<MuvafakatnameDocument>) => void;
+  currentDoc: MuvafakatnameDocument;
 }
 
 export const PasteExampleModal: React.FC<PasteExampleModalProps> = ({
   isOpen,
   onClose,
-  onApplyData,
+  onApply,
+  currentDoc,
 }) => {
+  const [activeMode, setActiveMode] = useState<'upload' | 'paste'>('upload');
+  const [rawText, setRawText] = useState('');
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [isLoadingFile, setIsLoadingFile] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   if (!isOpen) return null;
 
-  const [activeTab, setActiveTab] = useState<'paste' | 'file' | 'presets'>('presets');
-  const [pastedText, setPastedText] = useState('');
-  const [isParsing, setIsParsing] = useState(false);
-  const [fileLoading, setFileLoading] = useState(false);
-  const [fileError, setFileError] = useState<string | null>(null);
+  // Process a selected DOCX file
+  const processDocxFile = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.docx') && !file.name.toLowerCase().endsWith('.doc')) {
+      setFeedbackMsg({
+        text: 'Lütfen geçerli bir Microsoft Word (.docx) dosyası seçin.',
+        type: 'error',
+      });
+      return;
+    }
 
-  // Hazır gerçekçi örnek belgeler
-  const presets: ExamplePreset[] = [
+    setIsLoadingFile(true);
+    setFileName(file.name);
+    setFeedbackMsg({
+      text: `"${file.name}" dosyası inceleniyor ve metinler ayrıştırılıyor...`,
+      type: 'info',
+    });
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      const extractedText = result.value.trim();
+
+      if (!extractedText) {
+        setFeedbackMsg({
+          text: 'Dosyada okunabilir metin bulunamadı. Lütfen dosyanın boş veya salt resim olmadığından emin olun.',
+          type: 'error',
+        });
+      } else {
+        setRawText(extractedText);
+        setFeedbackMsg({
+          text: `"${file.name}" belgesi başarıyla okundu! Şimdi aşağıdaki "Akıllı Ayrıştır ve A4'e Yerleştir" butonuna basarak doğrudan resmi A4 formatına dönüştürebilirsiniz.`,
+          type: 'success',
+        });
+      }
+    } catch (err) {
+      console.error('Docx parse error:', err);
+      setFeedbackMsg({
+        text: 'Word belgesi okunurken bir hata oluştu. Dosyanın şifreli veya bozuk olmadığını kontrol edin.',
+        type: 'error',
+      });
+    } finally {
+      setIsLoadingFile(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processDocxFile(file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processDocxFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  // Pre-prepared sample drafts the user can try with 1 click
+  const sampleDrafts = [
     {
-      id: 'ek9-konut',
-      title: 'SGK EK-9 Gayrimenkul (Taşınmaz) Teminat Muvafakatnamesi',
-      badge: 'EK-9 Resmi Form',
-      desc: '3. Şahıs adına kayıtlı Ordu Altınordu dairesinin SGK prim borcuna 6183/10-5 uyarınca teminat gösterilmesi.',
-      data: {
-        sablonId: 'ek9-ucuncu-sahis',
-        baslik: 'EK-9: ÜÇÜNCÜ ŞAHISLAR TARAFINDAN VERİLECEK MUVAFAKATNAME ÖRNEĞİ',
-        ayarlar: {
-          formKodu: 'EK-9',
-          formKoduGoster: true,
-          kurumAdi: 'T.C. SOSYAL GÜVENLİK KURUMU BAŞKANLIĞI',
-          altBirimAdi: 'ORDU SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜ / ALTINORDU SOSYAL GÜVENLİK MERKEZİ',
-          evrakTarihi: new Date().toLocaleDateString('tr-TR'),
-          evrakSayisi: 'E-6183/2026/8421',
-          konu: '6183/10-5 Gereğince Teminat Gösterme ve Haciz Muvafakati',
-          dosyaNo: '2026/1055706-İCRA',
-          borcTutari: '385.450,00 TL',
-          borcDonemi: '2025/1 - 2025/12',
-          amblemTuru: 'tc',
-          yaziTipi: 'serif',
-          yaziBoyutu: 'base',
-          satirAraligi: 'normal',
-          antetVarMi: true,
-          tarihGoster: true,
-          ikinciImzaVarMi: true,
-          huzurdaImzaZaptiVarMi: true,
-          teminatTablosuGoster: true,
-          sayfaFormati: 'genelge_matbu',
-        },
-        borclu: {
-          sifat: 'ucuncu_sahis',
-          adSoyad: 'KEMAL ŞAHİN',
-          tcknVkn: '48920154812',
-          unvan: 'Taşınmaz Maliki (3. Şahıs)',
-          sgkSicilNo: '2 4324 01 01 1055706 052 20-30',
-          adres: 'Akyazı Mah. 842. Sok. No:14 D:5 - Ordu Altınordu',
-          telefon: '0532 555 12 34',
-        },
-        asilBorclu: {
-          unvan: 'ÖZTÜRK İNŞAAT VE TAAHHÜT TİC. LTD. ŞTİ.',
-          tcknVkn: '6480123985',
-          sgkSicilNo: '2 4324 01 01 1055706 052 20-30',
-          adres: 'Yeni Mah. Atatürk Bulvarı No:88/A Altınordu / Ordu',
-          borcDonemi: '2025/Ocak - 2025/Aralık',
-          borcTutari: '385.450,00 TL',
-          takipNo: '2026/1055706-İCRA',
-        },
-        teminat: {
-          tur: 'gayrimenkul',
-          il: 'ORDU',
-          ilce: 'ALTINORDU',
-          mahalleKoy: 'YENİ MAHALLE',
-          ada: '1024',
-          parsel: '18',
-          bagimsizBolum: '4 (2. Kat Mesken)',
-          yuzolcumu: '135 m²',
-          nitelik: 'Betonarme Apartman ve Mesken',
-          tapuMaliki: 'KEMAL ŞAHİN',
-          hisseOrani: 'Tam (1/1)',
-        },
-        metin: `ÖZTÜRK İNŞAAT VE TAAHHÜT TİC. LTD. ŞTİ.'nin Sosyal Güvenlik Kurumuna olan 2025/1 - 2025/12 dönemi/ayına ilişkin 385.450,00 TL tutarında prim ve idari para cezası borcuna ve bu borca bu tarihten ödenmesine kadar geçecek süre için işleyecek fer’ilerine karşılık;
+      label: 'Örnek: Anne-Baba Seyahat İzni',
+      text: `T.C. İÇİŞLERİ BAKANLIĞI EMNİYET MÜDÜRLÜĞÜNE
+MUVAFAKATNAME
 
-Aşağıda özellikleri yazılı menkul/gayrimenkul malı 6183 sayılı Kanunun 10 uncu maddesinin beşinci fıkrası gereğince teminat olarak gösteriyor ve söz konusu malların Sosyal Güvenlik Kurumu tarafından haczedilmesine muvafakat ediyorum.
+Velayetimiz altında bulunan müşterek çocuğumuz Caner YILDIZ'ın (T.C.: 33445566778), 15.07.2026 - 30.08.2026 tarihleri arasında Almanya ve İtalya'ya yapacağı turistik seyahat için pasaport çıkarmasına, vize başvurularını tamamlamasına ve okul kafilesi eşliğinde yurt dışına çıkış yapmasına muvafakat ederiz.
 
-Bu konuda herhangi bir itirazda bulunmayacağımı bila-kaydü şart gayrikabili rücu kabul, beyan ve taahhüt ederim.`,
-        imzalayan1: {
-          adSoyad: 'KEMAL ŞAHİN',
-          unvan: 'Muvafakat Veren (3. Şahıs / Mülk Sahibi)',
-        },
-        imzalayan2: {
-          adSoyad: 'ÜMİT ÖZTÜRK',
-          unvan: 'Asıl Borçlu Şirket Müdürü',
-        },
-      },
+Muvafakat Veren Baba: Murat YILDIZ (TC: 11223344556)
+Muvafakat Veren Anne: Sevgi YILDIZ (TC: 99887766554)
+Tarih: 21.10.2026 / İstanbul`,
     },
     {
-      id: 'ek9-arac',
-      title: 'SGK EK-9 Taşıt / Ticari Araç Teminat Muvafakatnamesi',
-      badge: 'EK-9 Araç',
-      desc: 'Borçlunun ticari aracını SGK borcuna 6183/10 kapsamında teminat göstermesi ve hacze muvafakati.',
-      data: {
-        sablonId: 'ek9-borclu-teminat',
-        baslik: 'EK-9: BORÇLUNUN KENDİSİ TARAFINDAN VERİLEN TEMİNAT VE HACİZ MUVAFAKATNAMESİ',
-        ayarlar: {
-          formKodu: 'EK-9',
-          formKoduGoster: true,
-          kurumAdi: 'T.C. SOSYAL GÜVENLİK KURUMU BAŞKANLIĞI',
-          altBirimAdi: 'ORDU SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜ / ALTINORDU SOSYAL GÜVENLİK MERKEZİ',
-          evrakTarihi: new Date().toLocaleDateString('tr-TR'),
-          evrakSayisi: 'E-6183/2026/5129',
-          konu: 'Taşıt Teminat Gösterme ve Haciz Muvafakatnamesi',
-          dosyaNo: '2026/1055706-İCRA',
-          borcTutari: '185.000,00 TL',
-          borcDonemi: '2025 Yılı Prim Borçları',
-          amblemTuru: 'tc',
-          yaziTipi: 'serif',
-          yaziBoyutu: 'base',
-          satirAraligi: 'normal',
-          antetVarMi: true,
-          tarihGoster: true,
-          ikinciImzaVarMi: true,
-          huzurdaImzaZaptiVarMi: true,
-          teminatTablosuGoster: true,
-          sayfaFormati: 'genelge_matbu',
-        },
-        borclu: {
-          sifat: 'borclu',
-          adSoyad: 'ÜMİT ÖZTÜRK',
-          tcknVkn: '24324010110',
-          unvan: 'İşveren / Borçlu',
-          sgkSicilNo: '2 4324 01 01 1055706 052 20-30',
-          adres: 'Yeni Mah. 328. Sok. Dış Kapı No:8 - Ordu Altınordu',
-          telefon: '0544 123 45 67',
-        },
-        teminat: {
-          tur: 'tasit',
-          plaka: '52 AB 456',
-          markaModel: '2023 Ford Transit Custom 320S',
-          modelYili: '2023',
-          cinsi: 'Kapalı Kasa Panelvan',
-          sasiNo: 'NM0XXXTTFXP89421',
-          motorNo: 'BK2X982145',
-          ruhsatSahibi: 'ÜMİT ÖZTÜRK',
-        },
-        imzalayan1: {
-          adSoyad: 'ÜMİT ÖZTÜRK',
-          unvan: 'Muvafakat Eden Borçlu',
-        },
-        imzalayan2: {
-          adSoyad: 'Sosyal Güvenlik Merkezi Yetkilisi',
-          unvan: 'İcra Kabul Yetkilisi',
-        },
-      },
-    },
-    {
-      id: 'maas-haczi-preset',
-      title: 'Maaş Haczi Artırımlı Kesinti Muvafakatnamesi (İİK 83)',
-      badge: 'İİK 83 & 6183',
-      desc: 'Çalışan borçlunun maaşından 1/4 sınırını aşarak aylık sabit tutar kesilmesine muvafakati.',
-      data: {
-        sablonId: 'maas-haczi',
-        baslik: 'Maaş Haczi Kesinti Muvafakatnamesi (İİK m. 83 & 6183 m. 71)',
-        ayarlar: {
-          formKodu: 'MUVAFAKAT',
-          formKoduGoster: false,
-          kurumAdi: 'T.C. SOSYAL GÜVENLİK KURUMU BAŞKANLIĞI',
-          altBirimAdi: 'İcra Takip Haciz ve Satış Servisi',
-          evrakTarihi: new Date().toLocaleDateString('tr-TR'),
-          evrakSayisi: 'E-İCRA/2026/102',
-          konu: 'Maaş Haczi ve Kesinti Muvafakati',
-          dosyaNo: '2026/89412-İCRA',
-          borcTutari: '74.200,00 TL',
-          borcDonemi: 'GSS / 4b Prim Borcu',
-          amblemTuru: 'tc',
-          yaziTipi: 'serif',
-          yaziBoyutu: 'base',
-          satirAraligi: 'normal',
-          antetVarMi: true,
-          tarihGoster: true,
-          ikinciImzaVarMi: true,
-          huzurdaImzaZaptiVarMi: false,
-          teminatTablosuGoster: true,
-          sayfaFormati: 'genelge_matbu',
-        },
-        borclu: {
-          sifat: 'borclu',
-          adSoyad: 'AHMET YILDIRIM',
-          tcknVkn: '12345678902',
-          unvan: 'Borçlu Sigortalı',
-          adres: 'Karşıyaka Mah. 504. Sok. No:12 Altınordu / Ordu',
-        },
-        teminat: {
-          tur: 'maas',
-          calistigiYer: 'KARADENİZ NAKLİYAT VE DIŞ TİCARET A.Ş.',
-          aylikNetUcret: '42.500 TL Net',
-          kesintiTutariOrani: 'Aylık 15.000 TL Kesinti',
-        },
-      },
-    },
-    {
-      id: 'tecil-48-preset',
-      title: '6183/48 Tecil ve Taksitlendirme Taahhütnamesi',
-      badge: 'Tecil & Taksit',
-      desc: 'Borcun peşinat ve taksitler halinde ödeneceğine ve teminat feragatına ilişkin taahhütname.',
-      data: {
-        sablonId: '6183-taahhutname',
-        baslik: '6183 Sayılı Kanun Madde 48 Tecil ve Taksitlendirme Taahhütnamesi',
-        ayarlar: {
-          formKodu: 'TAAHHÜT',
-          formKoduGoster: false,
-          kurumAdi: 'T.C. SOSYAL GÜVENLİK KURUMU BAŞKANLIĞI',
-          altBirimAdi: 'ORDU SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜ / TECİL SERVİSİ',
-          evrakTarihi: new Date().toLocaleDateString('tr-TR'),
-          evrakSayisi: 'E-6183/48-2026/304',
-          konu: '6183/48 Tecil ve Taksitlendirme Ödeme Taahhüdü',
-          dosyaNo: '2026/1055706-İCRA',
-          borcTutari: '385.450,00 TL',
-          borcDonemi: '2025 Tüm Dönemler',
-          amblemTuru: 'tc',
-          yaziTipi: 'serif',
-          yaziBoyutu: 'base',
-          satirAraligi: 'normal',
-          antetVarMi: true,
-          tarihGoster: true,
-          ikinciImzaVarMi: true,
-          huzurdaImzaZaptiVarMi: false,
-          teminatTablosuGoster: false,
-          sayfaFormati: 'genelge_matbu',
-        },
-      },
+      label: 'Örnek: Nüfus İkametgah İzni',
+      text: `NÜFUS VE VATANDAŞLIK İŞLERİ MÜDÜRLÜĞÜNE
+MUVAFAKATNAME
+
+Maliki ve kiracısı bulunduğum Çankaya / Ankara adresindeki konutumda, kardeşim Serkan KAYA'nın (T.C.: 44556677889) ikamet etmesine ve adres kaydı yaptırmasına rıza gösteriyorum.
+
+Muvafakat Veren: Ahmet KAYA (TC: 12345678901)
+Tarih: 21.10.2026`,
     },
   ];
 
-  // Metin ayrıştırma (Regex & Pattern matcher)
-  const parsePastedContent = (text: string) => {
-    setIsParsing(true);
-    const result: Partial<MuvafakatnameBelgeData> = {};
-    const ayarlar: Partial<MuvafakatnameBelgeData['ayarlar']> = {};
-    const borclu: Partial<MuvafakatnameBelgeData['borclu']> = { sifat: 'borclu', adSoyad: '', tcknVkn: '', adres: '' };
-    const teminat: Partial<TeminatBilgisi> = { tur: 'gayrimenkul' };
-
-    // TCKN / VKN (11 veya 10 haneli rakamlar)
-    const tcknMatch = text.match(/\b([1-9][0-9]{10}|[0-9]{10})\b/);
-    if (tcknMatch) {
-      borclu.tcknVkn = tcknMatch[1];
+  const handleSmartParse = () => {
+    if (!rawText.trim()) {
+      setFeedbackMsg({
+        text: 'Lütfen önce bir Word (.docx) dosyası yükleyin veya metin yapıştırın.',
+        type: 'error',
+      });
+      return;
     }
 
-    // SGK Sicil No (2 4324... veya benzer format)
-    const sgkSicilMatch = text.match(/(?:sicil|işyeri\s*sicil|sicil\s*no)[:\s]*([0-9\s-]{15,35})/i);
-    if (sgkSicilMatch) {
-      borclu.sgkSicilNo = sgkSicilMatch[1].trim();
+    const updates: Partial<MuvafakatnameDocument> = {};
+    const text = rawText;
+
+    // Detect TC Numbers (11 digits)
+    const tcMatches = text.match(/\b\d{11}\b/g) || [];
+
+    // Detect Date (DD.MM.YYYY or DD/MM/YYYY)
+    const dateMatch = text.match(/\b\d{1,2}[./]\d{1,2}[./]\d{4}\b/);
+    if (dateMatch) {
+      updates.date = dateMatch[0].replace(/\//g, '.');
     }
 
-    // Dosya / Takip No (2026/1055706...)
-    const dosyaMatch = text.match(/(?:dosya|takip|esas)\s*(?:no|numarası)?[:\s]*([0-9]{4}\/[0-9\w-]+)/i);
-    if (dosyaMatch) {
-      ayarlar.dosyaNo = dosyaMatch[1].trim();
+    // Detect Institution / Makam
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const institutionLine = lines.find(l => 
+      l.toUpperCase().includes('MÜDÜRLÜĞ') || 
+      l.toUpperCase().includes('MAKAM') || 
+      l.toUpperCase().includes('BAKANLIĞ') ||
+      l.toUpperCase().includes('NOTERLİĞ') ||
+      l.toUpperCase().includes('KAYMAKAMLIĞI') ||
+      l.toUpperCase().includes('VALİLİĞİ')
+    );
+    if (institutionLine) {
+      updates.institution = institutionLine.toUpperCase();
     }
 
-    // Plaka (örn: 52 ABC 123, 34 AB 1234)
-    const plakaMatch = text.match(/\b(0[1-9]|[1-7][0-9]|8[01])\s*([A-Z]{1,3})\s*([0-9]{2,4})\b/);
-    if (plakaMatch) {
-      teminat.tur = 'tasit';
-      teminat.plaka = plakaMatch[0].trim();
+    // Detect Title
+    const titleLine = lines.find(l => l.toUpperCase().includes('MUVAFAKAT'));
+    if (titleLine) {
+      updates.title = titleLine.toUpperCase();
     }
 
-    // Ada / Parsel
-    const adaParselMatch = text.match(/ada[:\s]*([0-9]+)[\s,/-]*parsel[:\s]*([0-9]+)/i);
-    if (adaParselMatch) {
-      teminat.tur = 'gayrimenkul';
-      teminat.ada = adaParselMatch[1];
-      teminat.parsel = adaParselMatch[2];
+    // Extract Grantor name & TC
+    const updatedGrantor = { ...currentDoc.grantor };
+    if (tcMatches[0]) {
+      updatedGrantor.tcNumber = tcMatches[0];
     }
 
-    // Tutar (örn: 125.000,00 TL veya 125000 TL)
-    const tutarMatch = text.match(/([0-9]{1,3}(?:\.[0-9]{3})*(?:,[0-9]{2})?)\s*(?:TL|Türk Lirası)/i);
-    if (tutarMatch) {
-      ayarlar.borcTutari = `${tutarMatch[1]} TL`;
+    // Try to find names around "Muvafakat Veren" or "Baba:" or "Anne:"
+    const grantorMatch = text.match(/Muvafakat\s*Veren(?:\s*Baba)?[:\s]+([A-ZÇĞİÖŞÜa-zçğıöşü\s]{3,30})/i);
+    if (grantorMatch && grantorMatch[1]) {
+      updatedGrantor.fullName = grantorMatch[1].trim();
+    }
+    updates.grantor = updatedGrantor;
+
+    // Second Grantor (if two TCs or mentions Anne/Baba)
+    if (tcMatches.length >= 2 && tcMatches[1] && (text.includes('Anne') || text.includes('Müşterek') || text.includes('Veren (2)'))) {
+      const updatedGrantor2 = {
+        ...currentDoc.grantor2,
+        enabled: true,
+        tcNumber: tcMatches[1],
+        relation: 'Anne / Yasal Veli',
+      };
+      const grantor2Match = text.match(/Anne[:\s]+([A-ZÇĞİÖŞÜa-zçğıöşü\s]{3,30})/i);
+      if (grantor2Match && grantor2Match[1]) {
+        updatedGrantor2.fullName = grantor2Match[1].trim();
+      }
+      updates.grantor2 = updatedGrantor2;
     }
 
-    // İl / İlçe
-    const ilMatch = text.match(/(?:ORDU|İSTANBUL|ANKARA|İZMİR|SAMSUN|TRABZON|BURSA|ANTALYA|KOCAELİ|GİRESUN)/i);
-    if (ilMatch) {
-      teminat.il = ilMatch[0].toUpperCase();
+    // Grantee (child or recipient)
+    const lastTc = tcMatches[tcMatches.length - 1];
+    if (tcMatches.length >= 3 && lastTc) {
+      const updatedGrantee = {
+        ...currentDoc.grantee,
+        enabled: true,
+        tcNumber: lastTc,
+      };
+      const childMatch = text.match(/çocuğumuz\s+([A-ZÇĞİÖŞÜa-zçğıöşü\s]{3,30})(?:'ın|'in|\s*\()/i);
+      if (childMatch && childMatch[1]) {
+        updatedGrantee.fullName = childMatch[1].trim();
+      }
+      updates.grantee = updatedGrantee;
     }
 
-    // Ad Soyad tespiti
-    const adSoyadMatch = text.match(/(?:adı\s*soyadı|ad\s*soyad|borçlu|muvafakat\s*eden)[:\s]*([A-ZÇĞİÖŞÜa-zçğıöşü\s]{3,35})/i);
-    if (adSoyadMatch) {
-      borclu.adSoyad = adSoyadMatch[1].trim();
+    // Extract main narrative paragraphs (filter out headers and signatures)
+    const narrativeLines = lines.filter(l => 
+      !l.toUpperCase().includes('MUVAFAKATNAME') &&
+      !l.toUpperCase().includes('MÜDÜRLÜĞ') &&
+      !l.toUpperCase().includes('MAKAM') &&
+      !l.startsWith('Tarih:') &&
+      !l.startsWith('Muvafakat Veren')
+    );
+
+    if (narrativeLines.length > 0) {
+      updates.bodyText = narrativeLines.join('\n\n');
+    } else {
+      updates.bodyText = text;
     }
 
-    result.ayarlar = ayarlar as any;
-    result.borclu = borclu as any;
-    result.teminat = teminat as any;
-    result.metin = text.trim();
+    onApply(updates);
+    setFeedbackMsg({
+      text: 'Belge başarıyla ayrıştırıldı ve resmi A4 sayfasına yerleştirildi!',
+      type: 'success',
+    });
 
     setTimeout(() => {
-      setIsParsing(false);
-      onApplyData(result);
       onClose();
-    }, 300);
+    }, 700);
   };
 
-  // Word (.docx) veya Text (.txt) dosyası yükleme
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setFileError(null);
-    setFileLoading(true);
-
-    try {
-      if (file.name.endsWith('.docx')) {
-        const arrayBuffer = await file.arrayBuffer();
-        const res = await mammoth.extractRawText({ arrayBuffer });
-        const text = res.value || '';
-        if (text.trim().length === 0) {
-          throw new Error('Word belgesinde okunabilir metin bulunamadı.');
-        }
-        setPastedText(text);
-        setActiveTab('paste');
-      } else if (file.name.endsWith('.txt')) {
-        const text = await file.text();
-        setPastedText(text);
-        setActiveTab('paste');
-      } else {
-        throw new Error('Lütfen .docx veya .txt formatında bir belge seçin.');
-      }
-    } catch (err: any) {
-      setFileError(err.message || 'Dosya okunurken bir hata oluştu.');
-    } finally {
-      setFileLoading(false);
+  const handleDirectTransfer = () => {
+    if (!rawText.trim()) {
+      setFeedbackMsg({
+        text: 'Lütfen önce bir metin girin veya Word dosyası yükleyin.',
+        type: 'error',
+      });
+      return;
     }
+
+    onApply({
+      bodyText: rawText.trim(),
+    });
+
+    setFeedbackMsg({
+      text: 'Metin doğrudan A4 belgesinin hukuki metin alanına aktarıldı.',
+      type: 'success',
+    });
+
+    setTimeout(() => {
+      onClose();
+    }, 600);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div
-        className="w-full max-w-3xl rounded-3xl border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-        style={{
-          backgroundColor: 'var(--bg-secondary)',
-          borderColor: 'var(--border-primary)',
-          color: 'var(--text-primary)',
-        }}
-      >
-        {/* Üst Başlık */}
-        <div
-          className="px-6 py-4 border-b flex items-center justify-between"
-          style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--bg-elevated)' }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
-              <Sparkles className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4 overflow-y-auto no-print">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full border border-stone-200 overflow-hidden my-6">
+        {/* Modal Header */}
+        <div className="px-6 py-4 bg-stone-900 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-stone-800 rounded-md text-amber-400">
+              <FileUp className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-base text-slate-800 dark:text-slate-100">
-                Örnek Belge Yükle &amp; Akıllı Metin Aktarımı
+              <h3 className="font-semibold text-base leading-tight">
+                Muvafakatname Dosyası veya Metni Yükle
               </h3>
-              <p className="text-xs text-slate-500 font-medium">
-                Resmî EK-9 şablonlarını yükleyin, Word belgesi aktarın veya kopyalanan metni yapıştırın
+              <p className="text-xs text-stone-300">
+                Word (.docx) belgenizi yükleyin veya metni yapıştırın; anında resmi A4 belgesine dönüştürelim
               </p>
             </div>
           </div>
           <button
-            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-slate-500/10 transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+            className="text-stone-400 hover:text-white p-1 rounded-md transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Tab Butonları */}
-        <div
-          className="px-6 pt-3 border-b flex items-center gap-4 text-xs font-bold"
-          style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--bg-elevated)' }}
-        >
+        {/* Mode Switcher */}
+        <div className="px-6 pt-4 pb-2 border-b border-stone-200 bg-stone-50 flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setActiveTab('presets')}
-            className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
-              activeTab === 'presets'
-                ? 'border-teal-600 text-teal-600 dark:text-teal-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            onClick={() => setActiveMode('upload')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
+              activeMode === 'upload'
+                ? 'bg-stone-900 text-white shadow-xs'
+                : 'text-stone-600 hover:text-stone-900 bg-white border border-stone-200'
             }`}
           >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Hazır Örnek Belgeler ({presets.length})</span>
+            <Upload className="w-3.5 h-3.5" />
+            <span>Word (.docx) Dosyası Seç / Bırak</span>
           </button>
+
           <button
             type="button"
-            onClick={() => setActiveTab('paste')}
-            className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
-              activeTab === 'paste'
-                ? 'border-teal-600 text-teal-600 dark:text-teal-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            onClick={() => setActiveMode('paste')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
+              activeMode === 'paste'
+                ? 'bg-stone-900 text-white shadow-xs'
+                : 'text-stone-600 hover:text-stone-900 bg-white border border-stone-200'
             }`}
           >
-            <Clipboard className="w-4 h-4" />
-            <span>Metin / Taslak Yapıştır</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('file')}
-            className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
-              activeTab === 'file'
-                ? 'border-teal-600 text-teal-600 dark:text-teal-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <Upload className="w-4 h-4" />
-            <span>Word (.docx) Dosyası Yükle</span>
+            <FileText className="w-3.5 h-3.5" />
+            <span>Metin Yapıştır</span>
           </button>
         </div>
 
-        {/* Tab İçerikleri */}
-        <div className="p-6 overflow-y-auto space-y-4 flex-1">
-          {/* TAB 1: HAZIR ÖRNEKLER */}
-          {activeTab === 'presets' && (
+        {/* Modal Body */}
+        <div className="p-6 space-y-4">
+          {/* UPLOAD MODE */}
+          {activeMode === 'upload' && (
             <div className="space-y-3">
-              <p className="text-xs text-slate-500 font-medium">
-                Aşağıdaki hazır doldurulmuş resmî şablonlardan birini seçerek belgeyi anında oluşturabilirsiniz:
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {presets.map((preset) => (
-                  <div
-                    key={preset.id}
-                    className="p-4 rounded-2xl border transition-all hover:border-teal-500/80 hover:shadow-md cursor-pointer flex flex-col justify-between group"
-                    style={{
-                      backgroundColor: 'var(--bg-elevated)',
-                      borderColor: 'var(--border-primary)',
-                    }}
-                    onClick={() => {
-                      onApplyData(preset.data);
-                      onClose();
-                    }}
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
-                          {preset.badge}
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600 transition-colors" />
-                      </div>
-                      <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                        {preset.title}
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {preset.desc}
-                      </p>
-                    </div>
-                    <div className="mt-4 pt-3 border-t text-[11px] font-bold text-teal-600 dark:text-teal-400 flex items-center gap-1" style={{ borderColor: 'var(--border-primary)' }}>
-                      <span>Bu Örneği Yükle &amp; Uygula</span>
-                    </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                className="hidden"
+              />
+
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-stone-300 hover:border-stone-800 bg-stone-50 hover:bg-stone-100/70 rounded-xl p-8 text-center cursor-pointer transition-all group"
+              >
+                {isLoadingFile ? (
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <Loader2 className="w-8 h-8 text-stone-900 animate-spin" />
+                    <span className="text-xs font-semibold text-stone-700">Word dosyası okunuyor...</span>
                   </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className="w-12 h-12 rounded-full bg-stone-200/80 group-hover:bg-stone-300 flex items-center justify-center text-stone-700 transition-colors">
+                      <FileUp className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <span className="font-semibold text-stone-900 text-sm block">
+                        Word (.docx) dosyanızı buraya sürükleyip bırakın
+                      </span>
+                      <span className="text-xs text-stone-500 mt-0.5 block">
+                        veya bilgisayarınızdan dosya seçmek için tıklayın
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-mono text-stone-400 bg-white px-2 py-0.5 rounded border border-stone-200">
+                      Desteklenen formatlar: .docx, .doc
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {fileName && (
+                <div className="flex items-center justify-between p-2.5 bg-stone-100 rounded-lg text-xs font-medium text-stone-800">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-stone-600" />
+                    <span className="font-semibold">{fileName}</span>
+                  </div>
+                  <span className="text-stone-500 text-[11px]">
+                    {rawText ? `${rawText.length} karakter okundu` : ''}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PASTE / PREVIEW TEXTAREA */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-stone-700 uppercase tracking-wider">
+                {activeMode === 'upload' ? 'Okunan Belge Metni:' : 'Muvafakatname Metnini Buraya Yapıştırın:'}
+              </label>
+              {rawText && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRawText('');
+                    setFileName(null);
+                    setFeedbackMsg(null);
+                  }}
+                  className="text-[11px] text-stone-500 hover:text-stone-900 underline"
+                >
+                  Metni Temizle
+                </button>
+              )}
+            </div>
+            <textarea
+              rows={6}
+              value={rawText}
+              onChange={e => {
+                setRawText(e.target.value);
+                setFeedbackMsg(null);
+              }}
+              placeholder={`Örnek:\n\nİLGİLİ MAKAMA\nVelayeti altımda bulunan oğlum ...'ın okul gezisine katılmasına muvafakat ederim.\n\nMuvafakat Veren: Ahmet Yılmaz\nT.C.: 12345678901`}
+              className="w-full text-xs font-mono p-3.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 focus:border-stone-900 outline-none leading-relaxed bg-stone-50"
+            />
+          </div>
+
+          {/* Quick Sample Buttons (if in paste mode) */}
+          {activeMode === 'paste' && (
+            <div>
+              <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block mb-1.5">
+                Hızlı Örnek Yükle:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {sampleDrafts.map((sample, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setRawText(sample.text);
+                      setFeedbackMsg(null);
+                    }}
+                    className="px-2.5 py-1 text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-md transition-colors border border-stone-200"
+                  >
+                    {sample.label}
+                  </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* TAB 2: METİN YAPIŞTIR */}
-          {activeTab === 'paste' && (
-            <div className="space-y-3">
-              <p className="text-xs text-slate-500 font-medium">
-                Herhangi bir muvafakatname, dilekçe, e-Devlet veya SGK yazısını buraya yapıştırın. Sistem TCKN, ad soyad, dosya no, borç tutarı ve taşınmaz/araç verilerini otomatik ayrıştırır:
-              </p>
-              <textarea
-                rows={9}
-                value={pastedText}
-                onChange={(e) => setPastedText(e.target.value)}
-                placeholder="Örnek:
-T.C. SOSYAL GÜVENLİK KURUMU BAŞKANLIĞI
-ORDU SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜNE
-Konu: EK-9 Muvafakatname
-Dosya No: 2026/1055706-İCRA
-Borçlu: ÜMİT ÖZTÜRK (TCKN: 24324010110)
-Borç Tutarı: 385.450 TL
-Taşınmaz: Ordu Altınordu Yeni Mahalle Ada 1024 Parsel 18..."
-                className="form-control-custom text-xs font-mono leading-relaxed"
-              />
-
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-[11px] text-slate-500">
-                  {pastedText.length} karakter
-                </span>
-                <button
-                  type="button"
-                  disabled={!pastedText.trim() || isParsing}
-                  onClick={() => parsePastedContent(pastedText)}
-                  className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-md"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>{isParsing ? 'Ayrıştırılıyor...' : 'Otomatik Ayrıştır ve Uygula'}</span>
-                </button>
-              </div>
+          {feedbackMsg && (
+            <div
+              className={`p-3 text-xs rounded-lg flex items-start gap-2 border ${
+                feedbackMsg.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : feedbackMsg.type === 'error'
+                  ? 'bg-red-50 border-red-200 text-red-900'
+                  : 'bg-blue-50 border-blue-200 text-blue-900'
+              }`}
+            >
+              {feedbackMsg.type === 'success' ? (
+                <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-stone-600 shrink-0 mt-0.5" />
+              )}
+              <span className="leading-snug">{feedbackMsg.text}</span>
             </div>
           )}
+        </div>
 
-          {/* TAB 3: WORD (.DOCX) YÜKLE */}
-          {activeTab === 'file' && (
-            <div className="space-y-4">
-              <p className="text-xs text-slate-500 font-medium">
-                Bilgisayarınızda bulunan mevcut bir .docx formatlı muvafakatname veya taahhütname dosyasını yükleyin:
-              </p>
+        {/* Modal Actions */}
+        <div className="px-6 py-3.5 bg-stone-50 border-t border-stone-200 flex flex-wrap items-center justify-between gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 transition-colors"
+          >
+            Kapat
+          </button>
 
-              <label className="border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-teal-500 hover:bg-teal-500/5 transition-all">
-                <Upload className="w-10 h-10 text-teal-600 mb-2" />
-                <span className="font-extrabold text-sm text-slate-800 dark:text-slate-100">
-                  Word Belgesi Seçin veya Sürükleyin (.docx)
-                </span>
-                <span className="text-xs text-slate-500 mt-1">
-                  Metinler doğrudan çıkarılarak düzenleme paneline aktarılır
-                </span>
-                <input
-                  type="file"
-                  accept=".docx,.txt"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-
-              {fileLoading && (
-                <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/20 text-xs text-teal-700 dark:text-teal-300 font-bold flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-                  <span>Word belgesi okunuyor ve ayrıştırılıyor...</span>
-                </div>
-              )}
-
-              {fileError && (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-700 dark:text-rose-300 font-bold flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{fileError}</span>
-                </div>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDirectTransfer}
+              disabled={!rawText.trim()}
+              className="px-3.5 py-2 text-xs font-medium text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-100 disabled:opacity-50 transition-colors"
+            >
+              Yalnızca Metin Olarak Aktar
+            </button>
+            <button
+              onClick={handleSmartParse}
+              disabled={!rawText.trim()}
+              className="px-4 py-2 text-xs font-medium text-white bg-stone-900 rounded-lg hover:bg-stone-800 disabled:opacity-50 transition-colors flex items-center gap-1.5 shadow-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Akıllı Ayrıştır ve A4'e Yerleştir</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

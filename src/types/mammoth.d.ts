@@ -1,18 +1,8 @@
 declare module 'mammoth' {
-  export interface MammothResult {
+  export interface RawTextResult {
     value: string;
-    messages: Array<{
-      type: string;
-      message: string;
-    }>;
+    messages: any[];
   }
-
-  export interface MammothOptions {
-    arrayBuffer?: ArrayBuffer;
-    buffer?: Buffer;
-    path?: string;
-  }
-
-  export function extractRawText(input: { arrayBuffer: ArrayBuffer }): Promise<MammothResult>;
-  export function convertToHtml(input: { arrayBuffer: ArrayBuffer }): Promise<MammothResult>;
+  export function extractRawText(input: { arrayBuffer: ArrayBuffer }): Promise<RawTextResult>;
+  export function convertToHtml(input: { arrayBuffer: ArrayBuffer }): Promise<{ value: string; messages: any[] }>;
 }
