@@ -497,3 +497,33 @@ html:not(.dark) .border-slate-500\/15 {
 .animate-slot-pulse {
   animation: slotPulse 1.2s ease-out;
 }
+
+@keyframes popoverIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes popoverOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96) translateY(2px);
+  }
+}
+
+.animate-popover-in {
+  animation: popoverIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-popover-out {
+  animation: popoverOut 0.12s ease-in forwards;
+}

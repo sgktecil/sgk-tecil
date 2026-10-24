@@ -1,5 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, X, Check, ArrowRight } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { Sparkles, X, Check, ArrowRight, Maximize2, Minimize2 } from 'lucide-react';
+
+export type SlotEditStyle = 'popover' | 'modal';
 
 interface AnimatedSlotProps {
   value: string;
@@ -34,22 +37,106 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
   const [isClosing, setIsClosing] = useState(false);
   const [tempVal, setTempVal] = useState(value);
   const [isJustUpdated, setIsJustUpdated] = useState(false);
+  
+  // Slot edit style: 'popover' (kompakt baloncuk, ekranı kaplamaz) | 'modal' (klasik yay animasyonlu büyük pencere)
+  const [editStyle, setEditStyle] = useState<SlotEditStyle>(() => {
+    try {
+      const saved = localStorage.getItem('sgk_slot_style');
+      if (saved === 'modal' || saved === 'popover') return saved;
+    } catch {
+      // ignore
+    }
+    return 'popover'; // Default to compact non-intrusive popover
+  });
+
+  // Position state for compact popover
+  const [coords, setCoords] = useState<{
+    top: number;
+    left: number;
+    placeAbove: boolean;
+    arrowLeft: number;
+  } | null>(null);
+
+  const slotRef = useRef<HTMLSpanElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync internal temp value when opened or when value changes
+  // Synchronize slot style with global events & localStorage
+  useEffect(() => {
+    const handleStyleChange = (e: Event) => {
+      const customEvent = e as CustomEvent<SlotEditStyle>;
+      if (customEvent.detail && (customEvent.detail === 'modal' || customEvent.detail === 'popover')) {
+        setEditStyle(customEvent.detail);
+      }
+    };
+
+    window.addEventListener('sgk_slot_style_change', handleStyleChange);
+    return () => {
+      window.removeEventListener('sgk_slot_style_change', handleStyleChange);
+    };
+  }, []);
+
+  const changeStyle = (newStyle: SlotEditStyle) => {
+    setEditStyle(newStyle);
+    try {
+      localStorage.setItem('sgk_slot_style', newStyle);
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(new CustomEvent('sgk_slot_style_change', { detail: newStyle }));
+  };
+
+  const updatePopoverPosition = useCallback(() => {
+    if (!slotRef.current) return;
+    const rect = slotRef.current.getBoundingClientRect();
+    const popoverWidth = 320;
+    const estimatedHeight = 240;
+
+    // Check vertical space
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const placeAbove = spaceBelow < estimatedHeight && rect.top > estimatedHeight;
+
+    const top = placeAbove ? rect.top - 8 : rect.bottom + 8;
+
+    // Center horizontally relative to slot center, clamp within viewport
+    const slotCenterX = rect.left + rect.width / 2;
+    let left = slotCenterX - popoverWidth / 2;
+    left = Math.max(12, Math.min(window.innerWidth - popoverWidth - 12, left));
+
+    // Arrow anchor position relative to popover box
+    const arrowLeft = Math.max(16, Math.min(popoverWidth - 16, slotCenterX - left));
+
+    setCoords({
+      top,
+      left,
+      placeAbove,
+      arrowLeft,
+    });
+  }, []);
+
+  // Update position and focus on open
   useEffect(() => {
     if (isOpen) {
       setTempVal(value || '');
       setIsClosing(false);
-      // Auto focus input
-      setTimeout(() => {
+      updatePopoverPosition();
+
+      const timer = setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
           inputRef.current.select();
         }
       }, 50);
+
+      window.addEventListener('resize', updatePopoverPosition);
+      window.addEventListener('scroll', updatePopoverPosition, true);
+
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', updatePopoverPosition);
+        window.removeEventListener('scroll', updatePopoverPosition, true);
+      };
     }
-  }, [isOpen, value]);
+  }, [isOpen, value, updatePopoverPosition]);
 
   const handleOpen = (e: React.MouseEvent) => {
     if (!isEditable) return;
@@ -62,7 +149,7 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
     setTimeout(() => {
       setIsOpen(false);
       setIsClosing(false);
-    }, 180);
+    }, 160);
   };
 
   const handleSave = () => {
@@ -72,21 +159,21 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
     setTimeout(() => {
       setIsOpen(false);
       setIsClosing(false);
-      // Trigger a brief pulse animation to show it smoothly settled into place
       setIsJustUpdated(true);
       setTimeout(() => setIsJustUpdated(false), 1200);
-    }, 180);
+    }, 160);
   };
 
   const hasValue = Boolean(value && value.trim() && !/^[._\-…·]{2,}$/.test(value.trim()));
-  const displayText = hasValue ? value : (emptyDisplay || placeholder);
+  const displayText = hasValue ? value : emptyDisplay || placeholder;
 
   return (
     <>
       {/* Inline Slot in the Document Text */}
       <span
+        ref={slotRef}
         onClick={handleOpen}
-        title={isEditable ? `${label} - Tıklayıp kutucukta düzenleyin` : undefined}
+        title={isEditable ? `${label} - Tıklayıp doğrudan düzenleyin` : undefined}
         className={`relative inline cursor-pointer transition-all duration-200 select-text ${
           isJustUpdated ? 'animate-slot-pulse rounded-xs px-1 font-bold' : ''
         } ${
@@ -107,159 +194,349 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
         )}
       </span>
 
-      {/* Spring-Forward Floating Pop-Up Modal */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/45 backdrop-blur-xs no-print transition-opacity duration-200"
-          onClick={handleClose}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className={`bg-white rounded-2xl shadow-2xl border border-stone-200/90 max-w-md w-full overflow-hidden transition-all transform ${
-              isClosing ? 'animate-spring-backward' : 'animate-spring-forward'
-            }`}
-          >
-            {/* Header */}
-            <div className="px-5 py-3.5 bg-gradient-to-r from-stone-900 to-stone-800 text-white flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-2">
-                <span className="p-1 rounded-md bg-amber-400/20 text-amber-300">
-                  <Sparkles className="w-4 h-4" />
-                </span>
-                <div>
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-white">
-                    {label}
-                  </h3>
-                  <span className="text-[10px] text-stone-300 block -mt-0.5">
-                    A4 Resmi Belge Boşluk Doldurma
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleClose}
-                className="text-stone-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
-                title="Kapat (Esc)"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {/* PORTAL RENDERING: Prevents any parent zoom/transform clipping */}
+      {isOpen &&
+        createPortal(
+          editStyle === 'popover' ? (
+            /* ========================================================= */
+            /* STYLE 1: KOMPAKT BALONCUK (Non-intrusive / Doesn't dim)    */
+            /* ========================================================= */
+            <div
+              className="fixed inset-0 z-50 no-print"
+              onClick={handleClose}
+            >
+              {/* Ultra-light transparent backdrop to capture outside clicks without darkening screen */}
+              <div className="absolute inset-0 bg-stone-900/10 transition-opacity" />
 
-            {/* Content Body */}
-            <div className="p-5 space-y-4">
-              {description && (
-                <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-2.5 rounded-lg border border-stone-200/60">
-                  {description}
-                </p>
-              )}
-
-              {/* Input Area */}
-              <div>
-                <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1.5">
-                  Buraya Yazınız:
-                </label>
-                <div className="relative">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={tempVal}
-                    onChange={(e) => setTempVal(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSave();
-                      } else if (e.key === 'Escape') {
-                        e.preventDefault();
-                        handleClose();
-                      }
-                    }}
-                    placeholder={example ? `Örn: ${example}` : 'Ad Soyad veya metin giriniz...'}
-                    className="w-full px-3.5 py-3 text-sm font-bold text-stone-950 bg-stone-50 border-2 border-stone-300 rounded-xl focus:border-stone-900 focus:bg-white focus:outline-none transition-all shadow-inner"
+              {/* Anchored Popover Box */}
+              {coords && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'fixed',
+                    top: `${coords.top}px`,
+                    left: `${coords.left}px`,
+                    width: '320px',
+                    transform: coords.placeAbove ? 'translateY(-100%)' : 'none',
+                  }}
+                  className={`z-50 bg-white rounded-xl shadow-2xl border border-stone-200/95 overflow-visible transition-all ${
+                    isClosing ? 'animate-popover-out' : 'animate-popover-in'
+                  }`}
+                >
+                  {/* Directional Arrow pointing to slot */}
+                  <div
+                    style={{ left: `${coords.arrowLeft}px` }}
+                    className={`absolute -translate-x-1/2 w-3 h-3 bg-stone-900 rotate-45 pointer-events-none ${
+                      coords.placeAbove ? '-bottom-1.5' : '-top-1.5'
+                    }`}
                   />
-                  {tempVal && (
+
+                  {/* Header */}
+                  <div className="px-3.5 py-2.5 bg-gradient-to-r from-stone-900 to-stone-800 text-white rounded-t-xl flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                      <span className="font-bold text-[11px] uppercase tracking-wide truncate text-stone-100">
+                        {label}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {/* Style switcher toggle (to classic modal) */}
+                      <button
+                        type="button"
+                        onClick={() => changeStyle('modal')}
+                        className="p-1 text-stone-300 hover:text-white hover:bg-stone-700/60 rounded-md transition-colors cursor-pointer"
+                        title="Klasik Büyük Yay Animasyonlu Modala Geç"
+                      >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Close button */}
+                      <button
+                        type="button"
+                        onClick={handleClose}
+                        className="p-1 text-stone-300 hover:text-white hover:bg-stone-700/60 rounded-md transition-colors cursor-pointer"
+                        title="Kapat (Esc)"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-3 space-y-2.5">
+                    {description && (
+                      <p className="text-[11px] text-stone-500 leading-snug">
+                        {description}
+                      </p>
+                    )}
+
+                    {/* Compact Input */}
+                    <div className="relative">
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={tempVal}
+                        onChange={(e) => setTempVal(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSave();
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            handleClose();
+                          }
+                        }}
+                        placeholder={example ? `Örn: ${example}` : 'Metin veya isim giriniz...'}
+                        className="w-full pl-2.5 pr-8 py-2 text-xs font-bold text-stone-950 bg-stone-50 border border-stone-300 rounded-lg focus:border-stone-900 focus:bg-white focus:outline-none transition-all shadow-inner"
+                      />
+                      {tempVal && (
+                        <button
+                          type="button"
+                          onClick={() => setTempVal('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-[11px] font-bold p-0.5 rounded cursor-pointer"
+                          title="Temizle"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Quick Example Pill */}
+                    {example && !tempVal && (
+                      <div className="flex items-center gap-1.5 pt-0.5">
+                        <span className="text-[10px] text-stone-400">Örnek:</span>
+                        <button
+                          type="button"
+                          onClick={() => setTempVal(example)}
+                          className="text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer truncate max-w-[220px]"
+                          title="Örneği doldur"
+                        >
+                          "{example}"
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Live Sentence Preview Preview */}
+                    <div className="p-2 bg-amber-50/70 rounded-lg border border-amber-200/80 text-[11px] text-stone-800">
+                      <div className="text-[9px] uppercase tracking-wider font-bold text-amber-900 mb-0.5">
+                        Canlı Önizleme:
+                      </div>
+                      <p className="font-serif italic text-stone-900 line-clamp-2 leading-relaxed">
+                        "{sentencePreview ? (
+                          sentencePreview(tempVal || placeholder)
+                        ) : (
+                          <span>
+                            ... <strong className="text-amber-950 not-italic">{tempVal || placeholder}</strong>{suffix} ...
+                          </span>
+                        )}"
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="px-3 py-2 bg-stone-50 border-t border-stone-200 rounded-b-xl flex items-center justify-between gap-2">
                     <button
                       type="button"
-                      onClick={() => setTempVal('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-800 text-xs px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 transition-colors cursor-pointer"
-                      title="Metni Temizle"
+                      onClick={() => {
+                        setTempVal('');
+                        onConfirm('');
+                        handleClose();
+                      }}
+                      className="text-[10px] text-stone-500 hover:text-stone-800 underline underline-offset-2 cursor-pointer"
+                      title="Noktalı boşluk olarak bırak"
                     >
-                      ✕ Temizle
+                      Boş Bırak
                     </button>
-                  )}
-                </div>
-              </div>
 
-              {/* Quick Fill Suggestion */}
-              {example && !tempVal && (
-                <div className="flex items-center gap-2 pt-0.5">
-                  <span className="text-[11px] text-stone-500 font-medium">Hızlı Örnek:</span>
-                  <button
-                    type="button"
-                    onClick={() => setTempVal(example)}
-                    className="text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1"
-                  >
-                    <span>"{example}"</span>
-                    <ArrowRight className="w-3 h-3 text-blue-500" />
-                  </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleClose}
+                        className="px-2.5 py-1 text-[11px] font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer"
+                      >
+                        Vazgeç
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        className="px-3 py-1 bg-stone-900 hover:bg-stone-800 text-white font-bold text-[11px] rounded-lg shadow-xs flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        <Check className="w-3 h-3 text-amber-300" />
+                        <span>Uygula</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
-
-              {/* Live Sentence Preview Strip */}
-              <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/70 text-xs space-y-1">
-                <span className="text-[10px] uppercase font-bold text-amber-900 tracking-wider block">
-                  Cümledeki Canlı Görünüm (Önizleme)
-                </span>
-                <p className="font-serif text-stone-900 italic leading-relaxed text-[13px]">
-                  "{sentencePreview ? (
-                    sentencePreview(tempVal || placeholder)
-                  ) : (
-                    <span>
-                      ... <strong className="text-amber-950 underline decoration-amber-500 not-italic">{tempVal || placeholder}</strong>{suffix} ...
-                    </span>
-                  )}"
-                </p>
-              </div>
             </div>
-
-            {/* Footer Actions */}
-            <div className="px-5 py-3.5 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setTempVal('');
-                  onConfirm('');
-                  setIsClosing(true);
-                  setTimeout(() => {
-                    setIsOpen(false);
-                    setIsClosing(false);
-                  }, 180);
-                }}
-                className="text-xs font-medium text-stone-500 hover:text-stone-800 transition-colors cursor-pointer underline underline-offset-2"
-                title="Boş bırakıp noktalı alan olarak tut"
+          ) : (
+            /* ========================================================= */
+            /* STYLE 2: KLASİK YAY ANİMASYONLU BÜYÜK MODAL (Original)    */
+            /* ========================================================= */
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/45 backdrop-blur-xs no-print transition-opacity duration-200"
+              onClick={handleClose}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className={`bg-white rounded-2xl shadow-2xl border border-stone-200/90 max-w-md w-full overflow-hidden transition-all transform ${
+                  isClosing ? 'animate-spring-backward' : 'animate-spring-forward'
+                }`}
               >
-                Boş Bırak (Noktalı Yap)
-              </button>
+                {/* Header */}
+                <div className="px-5 py-3.5 bg-gradient-to-r from-stone-900 to-stone-800 text-white flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 rounded-md bg-amber-400/20 text-amber-300">
+                      <Sparkles className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h3 className="font-bold text-xs uppercase tracking-wider text-white">
+                        {label}
+                      </h3>
+                      <span className="text-[10px] text-stone-300 block -mt-0.5">
+                        A4 Resmi Belge Boşluk Doldurma
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="px-3.5 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 rounded-xl hover:bg-stone-200/60 transition-colors cursor-pointer"
-                >
-                  Vazgeç (Esc)
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow-md"
-                >
-                  <Check className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Onayla & Yerleştir (Enter)</span>
-                </button>
+                  <div className="flex items-center gap-1.5">
+                    {/* Style switcher toggle (to compact popover) */}
+                    <button
+                      type="button"
+                      onClick={() => changeStyle('popover')}
+                      className="flex items-center gap-1 text-[10px] font-semibold text-amber-300 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                      title="Kompakt Baloncuk Moduna Geç (Ekranı kaplamaz)"
+                    >
+                      <Minimize2 className="w-3.5 h-3.5" />
+                      <span>Kompakt Baloncuk</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      className="text-stone-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+                      title="Kapat (Esc)"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content Body */}
+                <div className="p-5 space-y-4">
+                  {description && (
+                    <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-2.5 rounded-lg border border-stone-200/60">
+                      {description}
+                    </p>
+                  )}
+
+                  {/* Input Area */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1.5">
+                      Buraya Yazınız:
+                    </label>
+                    <div className="relative">
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={tempVal}
+                        onChange={(e) => setTempVal(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSave();
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            handleClose();
+                          }
+                        }}
+                        placeholder={example ? `Örn: ${example}` : 'Ad Soyad veya metin giriniz...'}
+                        className="w-full px-3.5 py-3 text-sm font-bold text-stone-950 bg-stone-50 border-2 border-stone-300 rounded-xl focus:border-stone-900 focus:bg-white focus:outline-none transition-all shadow-inner"
+                      />
+                      {tempVal && (
+                        <button
+                          type="button"
+                          onClick={() => setTempVal('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-800 text-xs px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 transition-colors cursor-pointer"
+                          title="Metni Temizle"
+                        >
+                          ✕ Temizle
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick Fill Suggestion */}
+                  {example && !tempVal && (
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <span className="text-[11px] text-stone-500 font-medium">Hızlı Örnek:</span>
+                      <button
+                        type="button"
+                        onClick={() => setTempVal(example)}
+                        className="text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <span>"{example}"</span>
+                        <ArrowRight className="w-3 h-3 text-blue-500" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Live Sentence Preview Strip */}
+                  <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/70 text-xs space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-amber-900 tracking-wider block">
+                      Cümledeki Canlı Görünüm (Önizleme)
+                    </span>
+                    <p className="font-serif text-stone-900 italic leading-relaxed text-[13px]">
+                      "{sentencePreview ? (
+                        sentencePreview(tempVal || placeholder)
+                      ) : (
+                        <span>
+                          ... <strong className="text-amber-950 underline decoration-amber-500 not-italic">{tempVal || placeholder}</strong>{suffix} ...
+                        </span>
+                      )}"
+                    </p>
+                  </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="px-5 py-3.5 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempVal('');
+                      onConfirm('');
+                      handleClose();
+                    }}
+                    className="text-xs font-medium text-stone-500 hover:text-stone-800 transition-colors cursor-pointer underline underline-offset-2"
+                    title="Boş bırakıp noktalı alan olarak tut"
+                  >
+                    Boş Bırak (Noktalı Yap)
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      className="px-3.5 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 rounded-xl hover:bg-stone-200/60 transition-colors cursor-pointer"
+                    >
+                      Vazgeç (Esc)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow-md"
+                    >
+                      <Check className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Onayla & Yerleştir (Enter)</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          ),
+          document.body
+        )}
     </>
   );
 };

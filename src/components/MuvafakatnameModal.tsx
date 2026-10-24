@@ -83,7 +83,37 @@ export const MuvafakatnameModal: React.FC<MuvafakatnameModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [mobileView, setMobileView] = useState<'editor' | 'preview'>('preview');
+  const [slotStyle, setSlotStyle] = useState<'popover' | 'modal'>(() => {
+    try {
+      const saved = localStorage.getItem('sgk_slot_style');
+      if (saved === 'modal' || saved === 'popover') return saved;
+    } catch {
+      // ignore
+    }
+    return 'popover';
+  });
   const a4Ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleStyleChange = (e: Event) => {
+      const customEvent = e as CustomEvent<'popover' | 'modal'>;
+      if (customEvent.detail && (customEvent.detail === 'modal' || customEvent.detail === 'popover')) {
+        setSlotStyle(customEvent.detail);
+      }
+    };
+    window.addEventListener('sgk_slot_style_change', handleStyleChange);
+    return () => window.removeEventListener('sgk_slot_style_change', handleStyleChange);
+  }, []);
+
+  const handleToggleSlotStyle = (newStyle: 'popover' | 'modal') => {
+    setSlotStyle(newStyle);
+    try {
+      localStorage.setItem('sgk_slot_style', newStyle);
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(new CustomEvent('sgk_slot_style_change', { detail: newStyle }));
+  };
 
   // Sync active document state to localStorage
   useEffect(() => {
@@ -379,8 +409,36 @@ ${doc.additionalClauses && doc.additionalClauses.length > 0 ? '\nÖZEL HÜKÜMLE
               )}
             </div>
 
-            {/* Canvas Actions: Zoom Controls, Copy & Reset */}
+            {/* Canvas Actions: Slot Style, Zoom Controls, Copy & Reset */}
             <div className="flex items-center gap-2">
+              {/* Slot Edit Style Switcher */}
+              <div className="hidden sm:flex items-center gap-0.5 bg-stone-100 rounded-lg p-0.5 border border-stone-200 text-xs">
+                <button
+                  type="button"
+                  onClick={() => handleToggleSlotStyle('popover')}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                    slotStyle === 'popover'
+                      ? 'bg-stone-900 text-white shadow-xs'
+                      : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/60'
+                  }`}
+                  title="Kompakt Baloncuk: Belgeyi kapatmaz, kelimenin hemen altında açılır (Tavsiye Edilen)"
+                >
+                  <span>💬 Baloncuk</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleSlotStyle('modal')}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                    slotStyle === 'modal'
+                      ? 'bg-stone-900 text-white shadow-xs'
+                      : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/60'
+                  }`}
+                  title="Klasik Yay Animasyonlu Modal: Ekranın ortasında büyük pencere açılır"
+                >
+                  <span>🗖 Modal</span>
+                </button>
+              </div>
+
               {/* Zoom Controls */}
               <div className="flex items-center gap-0.5 bg-stone-100 rounded-lg p-0.5 border border-stone-200 text-xs">
                 <button
