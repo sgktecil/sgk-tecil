@@ -22,6 +22,7 @@ import { getActiveAdminPin } from './adminAuthService';
 
 const GA_STORAGE_KEY = 'sgk_ga_measurement_id';
 const LOCAL_STATS_KEY = 'sgk_visitor_stats_cache';
+export const DEFAULT_GA_ID = 'G-2E98K2XJTQ';
 
 let isGaInitialized = false;
 
@@ -43,7 +44,7 @@ export function getGaMeasurementId(): string {
     return envId.trim();
   }
 
-  return '';
+  return DEFAULT_GA_ID;
 }
 
 /**
