@@ -18,10 +18,16 @@ import {
   CheckCircle2,
   FileSignature,
   ChevronDown,
-  Info
+  ChevronUp,
+  Info,
+  SlidersHorizontal,
+  History,
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 import { INITIAL_BANKALAR } from '../data/bankalar';
 import { KNOWLEDGE_BASE } from '../data/knowledge';
+import { ASGARI_UCRET_TARIHCESI, AsgariUcretDonemi } from '../data/asgariUcretTarihcesi';
 import { formatTL, formatDateTR } from '../utils/calculator';
 import { safeStorage } from '../utils/storage';
 import { Banka } from '../types';
@@ -120,6 +126,9 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
   const [maasInput, setMaasInput] = useState('30.000,00');
   const [asgariUstuSecim, setAsgariUstuSecim] = useState<'1/4' | '1/3'>('1/4');
   const [maasCopied, setMaasCopied] = useState(false);
+  const [showAsgariSettings, setShowAsgariSettings] = useState(false);
+  const [tarihceArama, setTarihceArama] = useState('');
+  const [seciliDonemEtiketi, setSeciliDonemEtiketi] = useState<string>('2026 (Yürürlükteki)');
 
   const maasNum = parseFloat(maasInput.replace(/\./g, '').replace(',', '.')) || 0;
   const asgariUcretNum = parseFloat(asgariUcretInput.replace(/\./g, '').replace(',', '.')) || 28000.75;
@@ -154,11 +163,34 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
     safeStorage.setItem('sgk_asgari_ucret', val);
   };
 
+  const handleSelectDonem = (donem: AsgariUcretDonemi) => {
+    const formatted = formatTL(donem.netTL);
+    handleAsgariUcretChange(formatted);
+    setSeciliDonemEtiketi(`${donem.yil} (${donem.donem})`);
+  };
+
+  const handleResetToDefault = () => {
+    handleAsgariUcretChange('28.000,75');
+    setSeciliDonemEtiketi('2026 (Yürürlükteki)');
+  };
+
+  const filteredTarihce = ASGARI_UCRET_TARIHCESI.filter((d) => {
+    if (!tarihceArama.trim()) return true;
+    const query = tarihceArama.toLowerCase().trim();
+    return (
+      d.yil.toString().includes(query) ||
+      d.donem.toLowerCase().includes(query) ||
+      d.netFormatli.toLowerCase().includes(query) ||
+      (d.eskiTL && d.eskiTL.toLowerCase().includes(query)) ||
+      (d.aciklama && d.aciklama.toLowerCase().includes(query))
+    );
+  });
+
   const handleCopyMaasSonuc = () => {
     const text = `
 6183 SAYILI KANUN MD. 71 & İİK MD. 83 MAAŞ HACZİ KESİNTİ HESAPLAMASI
 -----------------------------------------------------------------
-• Dikkate Alınan Net Asgari Ücret: ${formatTL(asgariUcretNum)} TL
+• Dikkate Alınan Net Asgari Ücret: ${formatTL(asgariUcretNum)} TL (${seciliDonemEtiketi})
 • Borçlunun Aylık Net Maaşı       : ${formatTL(maasNum)} TL
 • Hukuki Durum                    : ${isAsgariUcretAltiVeyaEsit ? 'Asgari Ücret ve Altında (Azami 1/10 Kesinti Zorunlu)' : `Asgari Ücretin Üzerinde (${asgariUstuSecim} Kesinti Seçildi)`}
 • Haczedilecek Aylık Kesinti Tutarı: ${formatTL(aktifKesintiTutari)} TL (${isAsgariUcretAltiVeyaEsit ? '1/10' : asgariUstuSecim})
@@ -395,56 +427,227 @@ Yasal Dayanak: 6183 S.K. Md. 71 uyarınca asgari ücreti aşmayan gelir için 1/
                   </span>
                 </div>
 
-                {/* 1. ASGARİ ÜCRET GİRİŞ ALANI (Kullanıcı istediği zaman güncelleyebilir) */}
-                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="text-[11px] font-extrabold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                      <span>📌 Yürürlükteki Net Asgari Ücret (TL):</span>
-                    </label>
-                    <span className="text-[10px] text-amber-700 dark:text-amber-300 font-semibold hidden sm:inline">
-                      (Değişken — dilediğiniz gibi güncelleyebilirsiniz)
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <input
-                        type="text"
-                        value={asgariUcretInput}
-                        onChange={(e) => handleAsgariUcretChange(e.target.value)}
-                        onBlur={() => {
-                          const num = parseFloat(asgariUcretInput.replace(/\./g, '').replace(',', '.')) || 0;
-                          if (num > 0) handleAsgariUcretChange(formatTL(num));
-                        }}
-                        placeholder="28.000,75"
-                        className="form-control-custom font-mono font-bold text-amber-900 dark:text-amber-100 bg-white dark:bg-stone-900 pr-8"
-                      />
-                      <span className="absolute right-3 top-2.5 text-stone-400 font-bold text-xs pointer-events-none">₺</span>
+                {/* 1. ASGARİ ÜCRET REFERANS VE YASAL AYARLAR / TARİHÇE AKORDİYONU */}
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 dark:bg-amber-500/10 overflow-hidden transition-all">
+                  {/* Kompakt Başlık Satırı */}
+                  <div className="p-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] font-extrabold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                        <span>📌 Dikkate Alınan Net Asgari Ücret:</span>
+                      </span>
+                      <span className="font-mono font-bold text-xs text-amber-950 dark:text-amber-100 bg-amber-500/20 px-2.5 py-0.5 rounded-lg border border-amber-500/30">
+                        {formatTL(asgariUcretNum)} ₺
+                      </span>
+                      {seciliDonemEtiketi && (
+                        <span className="text-[10px] font-medium text-amber-800 dark:text-amber-300">
+                          • {seciliDonemEtiketi}
+                        </span>
+                      )}
                     </div>
 
-                    {/* Hızlı Hazır Değer Butonları */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleAsgariUcretChange('28.000,75')}
-                        className="px-2 py-1.5 rounded-lg border text-[10px] font-bold bg-white dark:bg-stone-900 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100/60 cursor-pointer transition-colors"
-                        title="2026 Net Asgari Ücreti (28.000,75 TL)"
-                      >
-                        28.000,75 ₺
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAsgariUcretChange('30.000,00')}
-                        className="px-2 py-1.5 rounded-lg border text-[10px] font-bold bg-white dark:bg-stone-900 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100/60 cursor-pointer transition-colors"
-                        title="30.000,00 TL"
-                      >
-                        30.000 ₺
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAsgariSettings(!showAsgariSettings)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-amber-950 dark:text-amber-100 bg-white dark:bg-stone-900 hover:bg-amber-100/60 dark:hover:bg-amber-950/40 border border-amber-400/50 cursor-pointer shadow-2xs transition-all"
+                    >
+                      <History className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300" />
+                      <span>{showAsgariSettings ? 'Ayarları Kapat' : 'Asgari Ücreti Değiştir & Tarihçe (2000-2026)'}</span>
+                      {showAsgariSettings ? (
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      )}
+                    </button>
                   </div>
-                  <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
-                    Sistem borçlunun aylık gelirini bu tutarla kıyaslayarak kanunen <strong>1/10</strong> mu yoksa <strong>1/4 - 1/3</strong> kuralının mı uygulanacağını otomatik belirler.
-                  </p>
+
+                  {/* Akordiyon Açıldığında Görünen Bölüm */}
+                  {showAsgariSettings && (
+                    <div className="p-3.5 sm:p-4 border-t border-amber-500/20 bg-white/70 dark:bg-stone-950/70 space-y-4">
+                      {/* 1.1 Doğrudan Yeni Tutar Girişi */}
+                      <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <label className="text-[11px] font-bold text-amber-950 dark:text-amber-200">
+                            Yürürlükteki Asgari Ücreti Güncelle (Yeni Yıl / Manuel Giriş):
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleResetToDefault}
+                            className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100 underline cursor-pointer"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>2026 Varsayılanına Sıfırla (28.000,75 ₺)</span>
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              value={asgariUcretInput}
+                              onChange={(e) => {
+                                handleAsgariUcretChange(e.target.value);
+                                setSeciliDonemEtiketi('Özel Belirlenen Tutar');
+                              }}
+                              onBlur={() => {
+                                const num = parseFloat(asgariUcretInput.replace(/\./g, '').replace(',', '.')) || 0;
+                                if (num > 0) handleAsgariUcretChange(formatTL(num));
+                              }}
+                              placeholder="28.000,75"
+                              className="form-control-custom font-mono font-bold text-amber-900 dark:text-amber-100 bg-white dark:bg-stone-900 pr-8"
+                            />
+                            <span className="absolute right-3 top-2.5 text-stone-400 font-bold text-xs pointer-events-none">₺</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const num = parseFloat(asgariUcretInput.replace(/\./g, '').replace(',', '.')) || 0;
+                              if (num > 0) handleAsgariUcretChange(formatTL(num));
+                              setShowAsgariSettings(false);
+                            }}
+                            className="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] cursor-pointer shadow-xs transition-colors shrink-0"
+                          >
+                            Kaydet & Kapat
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+                          💡 Asgari ücret yenilendiğinde yeni net rakamı buraya yazmanız yeterlidir. Yazdığınız tutar tarayıcınıza otomatik kaydedilir ve her açılışta kalıcı olarak korunur.
+                        </p>
+                      </div>
+
+                      {/* 1.2 Geriye Dönük Asgari Ücret Kayıtları (2000 - 2026) */}
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 font-bold text-[11px] text-stone-800 dark:text-stone-200">
+                            <History className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                            <span>📜 Geriye Dönük Asgari Ücret Arşivi (2000 - 2026):</span>
+                          </div>
+                          <span className="text-[10px] text-stone-500">
+                            Geçmiş dönem dosyası hesaplarken ilgili dönemi seçebilirsiniz.
+                          </span>
+                        </div>
+
+                        {/* Arama ve Hızlı Butonlar */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="relative flex-1 min-w-[180px]">
+                            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-stone-400 pointer-events-none" />
+                            <input
+                              type="text"
+                              value={tarihceArama}
+                              onChange={(e) => setTarihceArama(e.target.value)}
+                              placeholder="Yıl veya dönem ara (örn: 2000, 2015, 2023)..."
+                              className="form-control-custom pl-8 py-1.5 text-xs bg-white dark:bg-stone-900"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0 flex-wrap">
+                            {['2000', '2005', '2015', '2023', '2026'].map((yil) => (
+                              <button
+                                key={yil}
+                                type="button"
+                                onClick={() => setTarihceArama(yil)}
+                                className={`px-2 py-1 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+                                  tarihceArama === yil
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'
+                                }`}
+                              >
+                                {yil}
+                              </button>
+                            ))}
+                            {tarihceArama && (
+                              <button
+                                type="button"
+                                onClick={() => setTarihceArama('')}
+                                className="px-1.5 py-1 text-[10px] text-stone-500 hover:text-stone-700 underline cursor-pointer"
+                              >
+                                Temizle
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Tablo */}
+                        <div className="max-h-56 overflow-y-auto border rounded-xl overflow-hidden bg-white dark:bg-stone-900 text-[11px]" style={{ borderColor: 'var(--border-primary)' }}>
+                          <table className="w-full text-left border-collapse">
+                            <thead className="bg-stone-100 dark:bg-stone-800/80 text-[10px] text-stone-600 dark:text-stone-400 sticky top-0 border-b" style={{ borderColor: 'var(--border-primary)' }}>
+                              <tr>
+                                <th className="py-2 px-2.5 font-bold">Dönem / Yıl</th>
+                                <th className="py-2 px-2.5 font-bold">Net Asgari Ücret</th>
+                                <th className="py-2 px-2.5 font-bold">Brüt Tutar</th>
+                                <th className="py-2 px-2.5 font-bold">Tarihsel Not / Eski TL</th>
+                                <th className="py-2 px-2.5 text-right font-bold">İşlem</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
+                              {filteredTarihce.length === 0 ? (
+                                <tr>
+                                  <td colSpan={5} className="py-4 text-center text-stone-400">
+                                    Aramanıza uygun asgari ücret dönemi bulunamadı.
+                                  </td>
+                                </tr>
+                              ) : (
+                                filteredTarihce.map((d) => {
+                                  const isCurrentSelected = Math.abs(d.netTL - asgariUcretNum) < 0.05;
+                                  return (
+                                    <tr
+                                      key={d.id}
+                                      className={`hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors ${
+                                        isCurrentSelected ? 'bg-amber-500/10 dark:bg-amber-500/15 font-semibold' : ''
+                                      }`}
+                                    >
+                                      <td className="py-2 px-2.5">
+                                        <span className="font-bold text-stone-900 dark:text-white mr-1.5">{d.yil}</span>
+                                        <span className="text-[10px] text-stone-500">{d.donem}</span>
+                                      </td>
+                                      <td className="py-2 px-2.5 font-mono font-bold text-amber-700 dark:text-amber-300">
+                                        {d.netFormatli}
+                                      </td>
+                                      <td className="py-2 px-2.5 font-mono text-stone-600 dark:text-stone-400">
+                                        {d.brutFormatli}
+                                      </td>
+                                      <td className="py-2 px-2.5 text-[10px] text-stone-500 dark:text-stone-400">
+                                        {d.eskiTL ? (
+                                          <div className="font-mono text-purple-700 dark:text-purple-300 font-medium">
+                                            {d.eskiTL}
+                                          </div>
+                                        ) : (
+                                          d.aciklama || '—'
+                                        )}
+                                      </td>
+                                      <td className="py-2 px-2.5 text-right">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            handleSelectDonem(d);
+                                            setShowAsgariSettings(false);
+                                          }}
+                                          className={`px-2 py-1 rounded text-[10px] font-bold cursor-pointer transition-colors ${
+                                            isCurrentSelected
+                                              ? 'bg-emerald-600 text-white'
+                                              : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white border border-indigo-200 dark:border-indigo-800'
+                                          }`}
+                                        >
+                                          {isCurrentSelected ? '✓ Seçili' : 'Bu Tutarı Kullan'}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* 2005 Para Reformu Dipnotu */}
+                        <div className="p-2.5 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 text-[10px] text-indigo-900/80 dark:text-indigo-300/80 flex items-start gap-1.5 leading-relaxed">
+                          <Info className="w-3.5 h-3.5 shrink-0 text-indigo-600 mt-0.5" />
+                          <span>
+                            <strong>Para Reformu Hatırlatması (2005):</strong> 01.01.2005 tarihinde 5083 sayılı Kanun uyarınca Türk Lirasından 6 sıfır atılmıştır (1 YTL = 1.000.000 Eski TL). Örneğin <strong>2000 yılında</strong> net asgari ücret 1. dönemde <strong>80.598.000 TL</strong> (günümüz parasıyla 80,60 TL), 2. dönemde <strong>86.922.000 TL</strong> (günümüz parasıyla 86,92 TL) olarak uygulanmıştır.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 2. MAAŞ VE EK GELİR GİRİŞLERİ */}

@@ -302,46 +302,8 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                 />
               </div>
 
-              {/* Main Legal Sentence with Animated Spring-Forward Interactive Slots & Full Text Editing */}
+              {/* Main Legal Sentence with Animated Spring-Forward Interactive Slots */}
               <div className="relative group text-justify leading-relaxed text-stone-950 mb-5 font-serif text-[13px] rounded-sm transition-colors">
-                {/* Mode switcher banner & direct text edit trigger (hidden on print) */}
-                {isWordMode && (
-                  <div className="no-print mb-2 flex items-center justify-between bg-stone-100/90 border border-stone-200 px-3 py-1.5 rounded-lg text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-stone-800 text-[11px] uppercase tracking-wide">
-                        Muvafakat Metni:
-                      </span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                        doc.sgkDetails?.useCustomMainSentence
-                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                          : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                      }`}>
-                        {doc.sgkDetails?.useCustomMainSentence ? 'Özel Metin Modu' : 'Akıllı Boşluk Modu (Yay Animasyonlu)'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!doc.sgkDetails?.useCustomMainSentence && !doc.sgkDetails?.customMainSentence) {
-                            updateSgk('customMainSentence', getStandardEk9Sentence());
-                          }
-                          updateSgk('useCustomMainSentence', !doc.sgkDetails?.useCustomMainSentence);
-                        }}
-                        className="text-stone-900 hover:text-black font-bold flex items-center gap-1.5 cursor-pointer underline text-[11px]"
-                        title="Yazı içeriğini serbestçe kelime kelime düzenlemek için tıklayın"
-                      >
-                        <Edit3 className="w-3.5 h-3.5 text-amber-600" />
-                        <span>
-                          {doc.sgkDetails?.useCustomMainSentence
-                            ? 'Akıllı Boşluk Moduna Dön'
-                            : 'Yazı İçeriğini Doğrudan Düzenle (Word Modu)'}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 {doc.sgkDetails?.useCustomMainSentence ? (
                   <InlineEditable
@@ -1127,11 +1089,11 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                       </div>
                       <div className="text-[11px] text-stone-600 flex flex-wrap gap-x-4 mt-0.5">
                         <div className="flex items-center gap-1">
-                          <span>Yakınlık / Durum:</span>
+                          <span>Sıfatı / Yetkisi:</span>
                           <AnimatedSlot
-                            label="Yakınlık / Sıfat"
-                            description="Örn: Müşterek Çocuk, Şirket Müdürü"
-                            example="Müşterek Çocuk"
+                            label="Sıfatı / Yetkisi"
+                            description="Örn: Alacaklı Kamu İdaresi, Borçlu Şirket"
+                            example="Alacaklı İdare"
                             placeholder="...................."
                             value={doc.grantee.relation || ''}
                             onConfirm={(val) => updateGrantee('relation', val)}
@@ -1139,66 +1101,7 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                             className="text-stone-800 font-bold"
                           />
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span>Doğum Tarihi:</span>
-                          <AnimatedSlot
-                            label="Doğum Tarihi"
-                            description="Gün.Ay.Yıl formatında doğum tarihi"
-                            example="15.06.2012"
-                            placeholder="..../..../........"
-                            value={doc.grantee.birthDate || ''}
-                            onConfirm={(val) => updateGrantee('birthDate', val)}
-                            isEditable={isWordMode}
-                            className="font-mono text-stone-800"
-                          />
-                        </div>
                       </div>
-                      {(doc.grantee.travelCountry || isWordMode) && (
-                        <div className="text-[11px] text-stone-700 mt-0.5 flex items-center flex-wrap gap-1">
-                          <span>Gidilecek Yer / Kapsam:</span>
-                          <AnimatedSlot
-                            label="Gidilecek Yer / Kapsam"
-                            description="Örn: Almanya, Fransa ve Schengen Ülkeleri"
-                            example="Almanya, Fransa ve Schengen Ülkeleri"
-                            placeholder="................................................"
-                            value={doc.grantee.travelCountry || ''}
-                            onConfirm={(val) => updateGrantee('travelCountry', val)}
-                            isEditable={isWordMode}
-                            className="font-medium text-stone-900"
-                          />
-                          {(doc.grantee.travelDates || isWordMode) && (
-                            <div className="flex items-center gap-1 font-mono text-stone-600 ml-1">
-                              <span>(</span>
-                              <AnimatedSlot
-                                label="Seyahat / İzin Tarihleri"
-                                description="İzin verilen tarih aralığı"
-                                example="01.07.2026 - 31.08.2026"
-                                placeholder="...................."
-                                value={doc.grantee.travelDates || ''}
-                                onConfirm={(val) => updateGrantee('travelDates', val)}
-                                isEditable={isWordMode}
-                                className="font-mono text-stone-600"
-                              />
-                              <span>)</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {(doc.grantee.companion || isWordMode) && (
-                        <div className="text-[11px] text-stone-700 mt-0.5 flex items-center gap-1">
-                          <span>Refakatçi / Sorumlu:</span>
-                          <AnimatedSlot
-                            label="Refakatçi / Sorumlu Kişi"
-                            description="Refakat eden personel veya sorumlu"
-                            example="Kafile Başkanı Öğretmen Mehmet DEMİR refakatinde"
-                            placeholder="................................................"
-                            value={doc.grantee.companion || ''}
-                            onConfirm={(val) => updateGrantee('companion', val)}
-                            isEditable={isWordMode}
-                            className="font-medium text-stone-800"
-                          />
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -1214,7 +1117,7 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                     <AnimatedSlot
                       label="Muvafakatname Konusu"
                       description="Resmi evrak konu satırı"
-                      example="18 Yaşından Küçük Çocuğumuzun Yurt Dışı Seyahati ve Pasaport Çıkarma İzni"
+                      example="6183 Sayılı Kanun Uyarınca Maaş Kesintisi / Teminat ve Haciz Muvafakati"
                       placeholder="Muvafakat konusu..."
                       value={doc.subject}
                       onConfirm={(val) => updateField('subject', val)}
@@ -1225,24 +1128,8 @@ export const A4Document: React.FC<A4DocumentProps> = ({
                 </div>
               )}
 
-              {/* Legal Body Text & Content Editor */}
+              {/* Legal Body Text */}
               <div className="relative group text-justify leading-relaxed text-stone-950 font-normal">
-                {isWordMode && (
-                  <div className="no-print mb-2 flex items-center justify-between bg-stone-100/90 border border-stone-200 px-3 py-1.5 rounded-lg text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-stone-800 text-[11px] uppercase tracking-wide">
-                        Muvafakat Hüküm &amp; Yazı İçeriği:
-                      </span>
-                      <span className="text-[10px] text-stone-500 font-medium">
-                        (Word gibi tıklayıp serbestçe değiştirebilirsiniz)
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-stone-700 text-[11px] font-semibold">
-                      <Edit3 className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Yazı İçeriğini Düzenleme Açık</span>
-                    </div>
-                  </div>
-                )}
 
                 <InlineEditable
                   tagName="div"

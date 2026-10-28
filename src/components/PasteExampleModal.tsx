@@ -92,26 +92,29 @@ export const PasteExampleModal: React.FC<PasteExampleModalProps> = ({
   };
 
   // Pre-prepared sample drafts the user can try with 1 click
+  // Hazır SGK resmi muvafakatname örnekleri
   const sampleDrafts = [
     {
-      label: 'Örnek: Anne-Baba Seyahat İzni',
-      text: `T.C. İÇİŞLERİ BAKANLIĞI EMNİYET MÜDÜRLÜĞÜNE
-MUVAFAKATNAME
+      label: 'Örnek: SGK 6183 m.10/5 Teminat Muvafakatnamesi',
+      text: `İSTANBUL SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜNE
+ÜÇÜNCÜ ŞAHISLAR TARAFINDAN VERİLECEK MUVAFAKATNAME ÖRNEĞİ (EK-9)
 
-Velayetimiz altında bulunan müşterek çocuğumuz Caner YILDIZ'ın (T.C.: 33445566778), 15.07.2026 - 30.08.2026 tarihleri arasında Almanya ve İtalya'ya yapacağı turistik seyahat için pasaport çıkarmasına, vize başvurularını tamamlamasına ve okul kafilesi eşliğinde yurt dışına çıkış yapmasına muvafakat ederiz.
+ÖZDEMİR İNŞAAT VE TAAHHÜT LİMİTED ŞİRKETİ'nin Sosyal Güvenlik Kurumuna olan 2025/10 - 2026/04 dönemi/ayına ilişkin 850.000,00 TL tutarında sigorta primi ve gecikme cezası borcuna ve bu borca bu tarihten ödenmesine kadar geçecek süre için işleyecek fer’ilerine karşılık aşağıda özellikleri yazılı menkul / gayrimenkul malı 6183 sayılı Kanunun 10 uncu maddesinin beşinci fıkrası gereğince teminat olarak gösteriyor ve söz konusu malların Sosyal Güvenlik Kurumu tarafından haczedilmesine muvafakat ediyorum.
 
-Muvafakat Veren Baba: Murat YILDIZ (TC: 11223344556)
-Muvafakat Veren Anne: Sevgi YILDIZ (TC: 99887766554)
-Tarih: 21.10.2026 / İstanbul`,
+Teminat Malı: Kadıköy Caferağa Mah. 245 Ada 12 Parsel No:4 Mesken
+Muvafakat Veren: Mustafa ÖZDEMİR (T.C.: 24681012141)
+Adres: Moda Cad. No:44 Kadıköy / İstanbul
+Tarih: 21.10.2026`,
     },
     {
-      label: 'Örnek: Nüfus İkametgah İzni',
-      text: `NÜFUS VE VATANDAŞLIK İŞLERİ MÜDÜRLÜĞÜNE
-MUVAFAKATNAME
+      label: 'Örnek: SGK Maaş Kesintisi Muvafakati (6183 m.71)',
+      text: `ANKARA SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜNE
+MAAŞ HACZİ VE KESİNTİ MUVAFAKATNAMESİ
 
-Maliki ve kiracısı bulunduğum Çankaya / Ankara adresindeki konutumda, kardeşim Serkan KAYA'nın (T.C.: 44556677889) ikamet etmesine ve adres kaydı yaptırmasına rıza gösteriyorum.
+Sosyal Güvenlik Kurumuna olan sigorta primi borçlarıma karşılık; çalışmakta olduğum işyerimden almakta olduğum aylık net maaş ve ücretimden, 6183 sayılı Kanunun 71 inci maddesi gereğince her ay 10.000,00 TL kesinti yapılarak Sosyal Güvenlik Kurumu hesaplarına aktarılmasına ve borcum tamamen itfa edilinceye kadar bu kesintinin devamına gayrikabili rücu muvafakat ediyorum.
 
-Muvafakat Veren: Ahmet KAYA (TC: 12345678901)
+Muvafakat Veren: Cemil DURSUN (T.C.: 12345678901)
+İşyeri: Örnek Tekstil A.Ş.
 Tarih: 21.10.2026`,
     },
   ];

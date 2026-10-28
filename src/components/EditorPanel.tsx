@@ -35,36 +35,6 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   onAutoFit,
 }) => {
   const [activeTab, setActiveTab] = useState<'parties' | 'content' | 'design' | 'templates'>('parties');
-  const [slotStyle, setSlotStyle] = useState<'popover' | 'modal'>(() => {
-    try {
-      const saved = localStorage.getItem('sgk_slot_style');
-      if (saved === 'modal' || saved === 'popover') return saved;
-    } catch {
-      // ignore
-    }
-    return 'popover';
-  });
-
-  React.useEffect(() => {
-    const handleStyleChange = (e: Event) => {
-      const customEvent = e as CustomEvent<'popover' | 'modal'>;
-      if (customEvent.detail && (customEvent.detail === 'modal' || customEvent.detail === 'popover')) {
-        setSlotStyle(customEvent.detail);
-      }
-    };
-    window.addEventListener('sgk_slot_style_change', handleStyleChange);
-    return () => window.removeEventListener('sgk_slot_style_change', handleStyleChange);
-  }, []);
-
-  const handleToggleSlotStyle = (newStyle: 'popover' | 'modal') => {
-    setSlotStyle(newStyle);
-    try {
-      localStorage.setItem('sgk_slot_style', newStyle);
-    } catch {
-      // ignore
-    }
-    window.dispatchEvent(new CustomEvent('sgk_slot_style_change', { detail: newStyle }));
-  };
 
   const isSgkEk9 = doc.templateType === 'sgk_ek9';
 
@@ -1603,53 +1573,6 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 <Maximize2 className="w-3 h-3" />
                 Otomatik Sığdır
               </button>
-            </div>
-
-            {/* Boşluk Doldurma Pencere Stili (Kompakt Baloncuk vs Klasik Yay Modal) */}
-            <div className="bg-stone-50 p-3 rounded-lg border border-stone-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold uppercase tracking-wider text-stone-800 text-[11px] block">
-                  Belge İçi Boşluk Doldurma Stili
-                </span>
-                <span className="text-[10px] text-stone-500 font-mono">2 Farklı Görünüm</span>
-              </div>
-              <p className="text-[11px] text-stone-600 leading-snug">
-                Belgedeki noktalı boşluklara tıkladığınızda açılan pencere tarzını seçebilirsiniz:
-              </p>
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => handleToggleSlotStyle('popover')}
-                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                    slotStyle === 'popover'
-                      ? 'border-stone-900 bg-stone-900 text-white shadow-xs'
-                      : 'border-stone-300 bg-white text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  <div className="font-bold text-[11px] flex items-center gap-1.5">
-                    <span>💬 Kompakt Baloncuk</span>
-                  </div>
-                  <div className={`text-[10px] mt-0.5 leading-tight ${slotStyle === 'popover' ? 'text-stone-300' : 'text-stone-500'}`}>
-                    Kelimenin hemen altında açılır, ekranı ve belgeyi kaplamaz.
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggleSlotStyle('modal')}
-                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                    slotStyle === 'modal'
-                      ? 'border-stone-900 bg-stone-900 text-white shadow-xs'
-                      : 'border-stone-300 bg-white text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  <div className="font-bold text-[11px] flex items-center gap-1.5">
-                    <span>🗖 Klasik Büyük Modal</span>
-                  </div>
-                  <div className={`text-[10px] mt-0.5 leading-tight ${slotStyle === 'modal' ? 'text-stone-300' : 'text-stone-500'}`}>
-                    Ekranın ortasında yay animasyonuyla açılır.
-                  </div>
-                </button>
-              </div>
             </div>
 
             {/* Typography & Sizing */}

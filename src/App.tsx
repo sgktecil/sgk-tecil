@@ -7,7 +7,8 @@ import { TaksitFormuModal } from './components/TaksitFormuModal';
 import { DonemBorcDokumu } from './components/DonemBorcDokumu';
 import { MuvafakatnameModal } from './components/MuvafakatnameModal';
 import { SiteStatusModal } from './components/SiteStatusModal';
-import { MaintenanceScreen } from './components/MaintenanceScreen';
+import { AnalyticsModal } from './components/AnalyticsModal';
+import { AdminAuthModal } from './components/AdminAuthModal';
 import {
   formatTL,
   parseTL,
@@ -30,10 +31,14 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileText,
-  Lock
+  FileCheck,
+  FileSignature,
+  Lock,
+  BarChart3
 } from 'lucide-react';
 import { safeStorage } from './utils/storage';
 import { fetchSiteStatus, updateSiteStatus } from './utils/siteStatusService';
+import { initAnalytics, trackEvent } from './utils/analytics';
 
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark' | 'amoled'>(() => {
@@ -77,12 +82,15 @@ export default function App() {
   const [taksitFormuOpen, setTaksitFormuOpen] = useState(false);
   const [muvafakatnameOpen, setMuvafakatnameOpen] = useState(false);
 
-  // Canlı Yayın (Açık / Kapalı) Durumu - Varsayılan kapalı (kullanıcı kapattığı için)
-  const [isSiteOpen, setIsSiteOpen] = useState<boolean>(() => {
-    const saved = safeStorage.getItem('sgk_site_canli_durumu', 'kapali');
-    return saved === 'acik';
-  });
+  // Canlı Yayın Durumu - Varsayılan açık (sunucudan dinamik sorgulanır)
+  const [isSiteOpen, setIsSiteOpen] = useState<boolean>(true);
   const [siteStatusModalOpen, setSiteStatusModalOpen] = useState(false);
+  const [analyticsModalOpen, setAnalyticsModalOpen] = useState(false);
+
+  // Google Analytics ve Ziyaretçi Sayacını Başlat
+  useEffect(() => {
+    initAnalytics();
+  }, []);
 
   // Geliştirici çalışma ortamı tespiti (bu önizleme penceresinde rahatça çalışabilmeniz için)
   const isDevHost = typeof window !== 'undefined' && (
@@ -130,8 +138,51 @@ export default function App() {
     };
   }, []);
 
+  const [adminAuthModalOpen, setAdminAuthModalOpen] = useState(false);
+  const [pendingAdminAction, setPendingAdminAction] = useState<'status' | 'analytics' | null>(null);
+
+  // Yönetici bölümlerine erişim kontrolü (Yalnızca PIN doğrulamalı)
+  const handleOpenAdminSection = (section: 'status' | 'analytics') => {
+    if (adminUnlockedSession) {
+      if (section === 'status') {
+        setSiteStatusModalOpen(true);
+      } else {
+        setAnalyticsModalOpen(true);
+      }
+    } else {
+      setPendingAdminAction(section);
+      setAdminAuthModalOpen(true);
+    }
+  };
+
+  const handleAdminAuthSuccess = () => {
+    setAdminUnlockedSession(true);
+    try {
+      sessionStorage.setItem('sgk_admin_unlocked', 'true');
+    } catch {}
+    setAdminAuthModalOpen(false);
+    if (pendingAdminAction === 'status') {
+      setSiteStatusModalOpen(true);
+    } else if (pendingAdminAction === 'analytics') {
+      setAnalyticsModalOpen(true);
+    }
+    setPendingAdminAction(null);
+  };
+
   const handleToggleSiteStatus = async (open: boolean) => {
     setIsSiteOpen(open);
+    if (open) {
+      setAdminUnlockedSession(true);
+      setPreviewVisitorView(false);
+      try {
+        sessionStorage.setItem('sgk_admin_unlocked', 'true');
+        safeStorage.setItem('sgk_site_canli_durumu', 'acik');
+      } catch {}
+    } else {
+      try {
+        safeStorage.setItem('sgk_site_canli_durumu', 'kapali');
+      } catch {}
+    }
     await updateSiteStatus(open);
     showToast(open ? 'Site canlıya açıldı. Tüm ziyaretçiler artık erişebilir.' : 'Site kapatıldı. Ziyaretçiler artık bakım ekranını görecek.');
   };
@@ -144,12 +195,12 @@ export default function App() {
         (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a'))
       ) {
         e.preventDefault();
-        setSiteStatusModalOpen((prev) => !prev);
+        handleOpenAdminSection('status');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isDevHost, adminUnlockedSession]);
 
   // Form Inputs
   const [borcInput, setBorcInput] = useState('12.000.000,00');
@@ -166,16 +217,16 @@ export default function App() {
   const [likiditeOpen, setLikiditeOpen] = useState(false);
   const [teminatOpen, setTeminatOpen] = useState(false);
 
-  // Likidite inputs
+  // Likidite inputs (Kullanıcı girmeden önce tutar olmaması için boş başlatılır)
   const [likiditeTab, setLikiditeTab] = useState<'bilanco' | 'isletme'>('bilanco');
-  const [bilancoDv, setBilancoDv] = useState('100.000,00');
-  const [bilancoStok, setBilancoStok] = useState('10.000,00');
-  const [bilancoKy, setBilancoKy] = useState('200.000,00');
+  const [bilancoDv, setBilancoDv] = useState('');
+  const [bilancoStok, setBilancoStok] = useState('');
+  const [bilancoKy, setBilancoKy] = useState('');
 
-  const [isletmeKasa, setIsletmeKasa] = useState('10.000,00');
-  const [isletmeBanka, setIsletmeBanka] = useState('20.000,00');
-  const [isletmeAlacak, setIsletmeAlacak] = useState('30.000,00');
-  const [isletmeBorclar, setIsletmeBorclar] = useState('150.000,00');
+  const [isletmeKasa, setIsletmeKasa] = useState('');
+  const [isletmeBanka, setIsletmeBanka] = useState('');
+  const [isletmeAlacak, setIsletmeAlacak] = useState('');
+  const [isletmeBorclar, setIsletmeBorclar] = useState('');
 
   // Plan Tipi: 'kanuni' (6183 m.48 Artan Faizli - SGK Resmî Usulü) | 'esit' (Eşit Sabit Taksit)
   const [planTipi, setPlanTipi] = useState<'kanuni' | 'esit'>('kanuni');
@@ -249,6 +300,12 @@ export default function App() {
     const faiz = parseFloat(faizOraniInput) || 39;
     const res = calculate6183(borc, taksitSayisi, pesinat, pesinatTarihi, faiz, planTipi, pesinatDahilMi);
     setHesapSonucu(res);
+    trackEvent('tecil_hesaplama_yapildi', {
+      borc_tutari: borc,
+      vade: taksitSayisi,
+      pesinat: pesinat,
+      plan_tipi: planTipi,
+    });
     showToast('Hesaplama başarıyla güncellendi.');
   };
 
@@ -319,19 +376,19 @@ export default function App() {
     ekSatirBaslik2?: string;
     ekSatirBirlestir2?: boolean;
   }>({
-    ilMudurlugu: 'ORDU',
-    sgkMerkezi: 'ALTINORDU',
-    unvan: 'ÜMİT ÖZTÜRK',
-    sigortaNo: '1088448',
-    isyeriAdresi: 'YENİ MAH.328.SOK. Dış kapı no:8 İç kapı no:B - ORDU ALTINORDU',
-    tcknVkn: '12345678901',
-    vergiDairesi: 'Boztepe Vergi Dairesi',
-    ticaretSicilNo: '52-12345',
-    telefon: '0 (452) 234 56 78',
-    faks: '0 (452) 234 56 79',
-    gsm: '0 (532) 987 65 43',
-    eposta: 'umitozturk@gmail.com',
-    ikametgahAdresi: 'YENİ MAH.328.SOK. Dış kapı no:8 İç kapı no:B - ORDU ALTINORDU',
+    ilMudurlugu: '',
+    sgkMerkezi: '',
+    unvan: '',
+    sigortaNo: '',
+    isyeriAdresi: '',
+    tcknVkn: '',
+    vergiDairesi: '',
+    ticaretSicilNo: '',
+    telefon: '',
+    faks: '',
+    gsm: '',
+    eposta: '',
+    ikametgahAdresi: '',
     ekSatir: '',
     ekSatirBaslik: '',
     ekSatirBirlestir: true,
@@ -395,6 +452,7 @@ export default function App() {
   const bDv = parseTL(bilancoDv);
   const bStok = parseTL(bilancoStok);
   const bKy = parseTL(bilancoKy);
+  const hasBilancoData = bilancoDv.trim() !== '' || bilancoStok.trim() !== '' || bilancoKy.trim() !== '';
   const bilancoOrani = bKy > 0 ? (bDv - bStok) / bKy : 0;
 
   // İşletme likidite
@@ -402,39 +460,12 @@ export default function App() {
   const iBanka = parseTL(isletmeBanka);
   const iAlacak = parseTL(isletmeAlacak);
   const iBorc = parseTL(isletmeBorclar);
+  const hasIsletmeData = isletmeKasa.trim() !== '' || isletmeBanka.trim() !== '' || isletmeAlacak.trim() !== '' || isletmeBorclar.trim() !== '';
   const isletmeOrani = iBorc > 0 ? (iKasa + iBanka + iAlacak) / iBorc : 0;
 
-  // Eğer site canlıda kapalıysa:
-  // - Canlı bağlantıdaki (ais-pre-...) tüm harici ziyaretçiler KESİNLİKLE BAKIM EKRANI görür
-  // - Geliştirici çalışma ortamında (ais-dev-...) siz çalışmanıza devam edebilirsiniz
-  const shouldShowMaintenance = !isSiteOpen && (!isDevHost ? !adminUnlockedSession : previewVisitorView);
+  const isLikiditeCalculated = likiditeTab === 'bilanco' ? (hasBilancoData && bKy > 0) : (hasIsletmeData && iBorc > 0);
+  const currentLikiditeRasyosu = likiditeTab === 'bilanco' ? bilancoOrani : isletmeOrani;
 
-  if (shouldShowMaintenance) {
-    return (
-      <>
-        <MaintenanceScreen
-          onUnlockSite={() => handleToggleSiteStatus(true)}
-          onContinueDevelopment={
-            isDevHost
-              ? () => setPreviewVisitorView(false)
-              : () => {
-                  setAdminUnlockedSession(true);
-                  try {
-                    sessionStorage.setItem('sgk_admin_unlocked', 'true');
-                  } catch {}
-                }
-          }
-        />
-        <SiteStatusModal
-          isOpen={siteStatusModalOpen}
-          onClose={() => setSiteStatusModalOpen(false)}
-          isSiteOpen={isSiteOpen}
-          onToggleSiteStatus={handleToggleSiteStatus}
-          onPreviewMaintenance={() => setPreviewVisitorView(true)}
-        />
-      </>
-    );
-  }
 
   return (
     <div
@@ -451,7 +482,8 @@ export default function App() {
         theme={theme}
         onSelectTheme={(t) => setTheme(t)}
         isSiteOpen={isSiteOpen}
-        onOpenSiteStatusModal={() => setSiteStatusModalOpen(true)}
+        onOpenSiteStatusModal={() => handleOpenAdminSection('status')}
+        onOpenAnalytics={() => handleOpenAdminSection('analytics')}
       />
 
       {/* Main Container */}
@@ -699,17 +731,88 @@ export default function App() {
               </div>
             </div>
 
-            {/* 36 Ayı Aşan Tecillerde Kademeli Tecil Uyarısı */}
+            {/* 36 Ayı Aşan Tecillerde Uygulama Kuralları ve Gerekli Belgeler Rehberi */}
             {taksitSayisi > 36 && (
-              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-amber-900 dark:text-amber-200 space-y-1">
-                  <span className="font-extrabold block text-sm">
-                    ⚠️ 36 Ayı Aşan Tecillerde Kademeli Tecil Uygulanamaz!
-                  </span>
-                  <p>
-                    SGK 2024/12 ve 2026/15 Genelgeleri uyarınca, <strong>{taksitSayisi} ay</strong> gibi 36 ayı aşan tecillerde kademeli taksitlendirme uygulaması yapılamaz. Yalnızca <strong>eşit taksitler</strong> halinde ödeme planı düzenlenebilir ve borçlunun likidite oranının <strong>0,50 ve altında</strong> olması şarttır.
-                  </p>
+              <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-950 dark:text-amber-100 space-y-3 animate-in fade-in duration-200">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="font-extrabold block text-sm text-amber-900 dark:text-amber-200">
+                      ⚠️ {taksitSayisi} Ay Tecil İçin Uygulama Kuralları ve Kullanılacak Resmî Belgeler
+                    </span>
+                    <p className="text-xs text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                      SGK 2024/12 ve 2026/15 sayılı Genelgeleri uyarınca, <strong>36 ayı aşan ({taksitSayisi} ay)</strong> tecil taleplerinde <strong>kademeli taksitlendirme yapılamaz</strong>; yalnızca eşit taksitler halinde ödeme planı düzenlenebilir.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Kullanılacak Resmî Belgeler ve Koşullar */}
+                <div className="pt-2 border-t border-amber-500/20 grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+                  {/* 1. Zor Durum Belgesi: Ek 1-a veya Ek 1-b */}
+                  <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-amber-500/20 space-y-1.5 shadow-xs">
+                    <div className="font-bold flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
+                      <FileCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>1. Zor Durum Tespit Belgesi:</span>
+                    </div>
+                    {currentBorc > 900000 ? (
+                      <div className="text-[11px] text-slate-700 dark:text-slate-300 leading-normal">
+                        Toplam borç <strong>{formatTL(currentBorc)} ₺</strong> (900.000 TL üzeri) olduğundan, borçludan <strong>SMMM veya YMM onaylı Çok Zor Durum Raporu (Ek 1-a)</strong> alınması zorunludur.
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-slate-700 dark:text-slate-300 leading-normal">
+                        Toplam borç <strong>{formatTL(currentBorc)} ₺</strong> (900.000 TL ve altı) olduğundan, borçlunun bizzat dolduracağı <strong>Mali Durum Bildirim Formu (Ek 1-b)</strong> yeterlidir.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Rasyo / Likidite Oranı Şartı */}
+                  <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-amber-500/20 space-y-1.5 shadow-xs">
+                    <div className="font-bold flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
+                      <Scale className="w-4 h-4 text-indigo-500 shrink-0" />
+                      <span>2. Rasyo / Likidite Oranı Şartı:</span>
+                    </div>
+                    <div className="text-[11px] text-slate-700 dark:text-slate-300 leading-normal">
+                      36 ayı aşan ({taksitSayisi} ay) tecil verilebilmesi için Ek 1-a / Ek 1-b formunda tespit edilecek likidite oranının mutlaka <strong>0,50 ve altında</strong> olması şarttır. <em>(0,51 - 1,00 arası ise azami 36 ay verilebilir).</em>
+                    </div>
+                  </div>
+
+                  {/* 3. Teminat Belgesi */}
+                  <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-amber-500/20 space-y-1.5 shadow-xs">
+                    <div className="font-bold flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>3. Teminat Belgesi (10 Milyon TL Sınırı):</span>
+                    </div>
+                    <div className="text-[11px] text-slate-700 dark:text-slate-300 leading-normal">
+                      {currentTeminatGerekli ? (
+                        <>Borç 10 Milyon TL'yi aştığından aşan tutarın %50'si (<strong>{formatTL(currentGerekenTeminat)} ₺</strong>) için <strong>Banka Teminat Mektubu veya Ek-9 Haciz Muvafakatnamesi</strong> aranır.</>
+                      ) : (
+                        <>Borç 10.000.000 TL altında kaldığından <strong>teminat aranmaz</strong>.</>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 4. Resmî Talep Formu */}
+                  <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-amber-500/20 flex flex-col justify-between gap-2 shadow-xs">
+                    <div>
+                      <div className="font-bold flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
+                        <FileText className="w-4 h-4 text-teal-600 shrink-0" />
+                        <span>4. Resmî Başvuru Formu:</span>
+                      </div>
+                      <div className="text-[11px] text-slate-700 dark:text-slate-300 leading-normal">
+                        Borçlunun imzalı <strong>SGK Tecil ve Taksitlendirme Talep Formu</strong> (Ek-1) eksiksiz düzenlenmelidir.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTaksitFormuOpen(true)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] cursor-pointer shadow-xs transition-all self-start"
+                    >
+                      <FileSignature className="w-3.5 h-3.5" />
+                      <span>Resmî Formu Aç ve Düzenle</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -807,6 +910,7 @@ export default function App() {
                         <input
                           type="text"
                           value={bilancoDv}
+                          placeholder="0,00"
                           onChange={(e) => setBilancoDv(e.target.value)}
                           className="form-control-custom font-mono"
                         />
@@ -816,6 +920,7 @@ export default function App() {
                         <input
                           type="text"
                           value={bilancoStok}
+                          placeholder="0,00"
                           onChange={(e) => setBilancoStok(e.target.value)}
                           className="form-control-custom font-mono"
                         />
@@ -825,6 +930,7 @@ export default function App() {
                         <input
                           type="text"
                           value={bilancoKy}
+                          placeholder="0,00"
                           onChange={(e) => setBilancoKy(e.target.value)}
                           className="form-control-custom font-mono"
                         />
@@ -837,6 +943,7 @@ export default function App() {
                         <input
                           type="text"
                           value={isletmeKasa}
+                          placeholder="0,00"
                           onChange={(e) => setIsletmeKasa(e.target.value)}
                           className="form-control-custom font-mono"
                         />
@@ -846,6 +953,7 @@ export default function App() {
                         <input
                           type="text"
                           value={isletmeBanka}
+                          placeholder="0,00"
                           onChange={(e) => setIsletmeBanka(e.target.value)}
                           className="form-control-custom font-mono"
                         />
@@ -855,6 +963,7 @@ export default function App() {
                         <input
                           type="text"
                           value={isletmeAlacak}
+                          placeholder="0,00"
                           onChange={(e) => setIsletmeAlacak(e.target.value)}
                           className="form-control-custom font-mono"
                         />
@@ -864,6 +973,7 @@ export default function App() {
                         <input
                           type="text"
                           value={isletmeBorclar}
+                          placeholder="0,00"
                           onChange={(e) => setIsletmeBorclar(e.target.value)}
                           className="form-control-custom font-mono"
                         />
@@ -875,21 +985,50 @@ export default function App() {
                     <div>
                       <span className="font-bold text-slate-500">Hesaplanan Likidite Oranı:</span>
                       <div className="font-black text-lg font-mono text-indigo-600 dark:text-indigo-400">
-                        {(likiditeTab === 'bilanco' ? bilancoOrani : isletmeOrani).toFixed(2)}
+                        {isLikiditeCalculated ? currentLikiditeRasyosu.toFixed(2) : '-'}
                       </div>
                     </div>
                     <div className="text-right text-[11px]">
-                      {(likiditeTab === 'bilanco' ? bilancoOrani : isletmeOrani) <= 0.5 ? (
+                      {!isLikiditeCalculated ? (
+                        <span className="px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-500 dark:text-slate-400 font-bold">
+                          ℹ️ Rasyo için lütfen yukarıdaki tutarları giriniz
+                        </span>
+                      ) : currentLikiditeRasyosu <= 0.5 ? (
                         <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 font-bold">
                           ✓ Çok Zor Durum: Azami 72 Aya Kadar Tecil Edilebilir
                         </span>
-                      ) : (likiditeTab === 'bilanco' ? bilancoOrani : isletmeOrani) <= 1.0 ? (
+                      ) : currentLikiditeRasyosu <= 1.0 ? (
                         <span className="px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-600 font-bold">
                           ✓ Çok Zor Durum: Azami 36 Aya Kadar Tecil Edilebilir
                         </span>
                       ) : (
                         <span className="px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 font-bold">
-                          ✕ Likidite &gt; 1.01 Olduğundan Tecil Talebi Reddedilir
+                          ✕ Likidite &gt; 1,00 Olduğundan Tecil Talebi Reddedilir
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* İstenen Zor Durum Formu (900.000 TL Kuralı) */}
+                  <div className="p-3 rounded-xl border bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2" style={{ borderColor: 'var(--border-primary)' }}>
+                    <div>
+                      <span className="font-bold text-slate-700 dark:text-slate-200 block text-xs">
+                        Zor Durum Tespit Belgesi (2024/12 &amp; 2026/15 Genelgeleri):
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        {currentBorc > 900000
+                          ? `Borç tutarı 900.000 TL'yi aştığından (${formatTL(currentBorc)} ₺)`
+                          : `Borç tutarı 900.000 TL ve altında olduğundan (${formatTL(currentBorc)} ₺)`}
+                      </span>
+                    </div>
+                    <div>
+                      {currentBorc > 900000 ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 font-extrabold text-[11px] border border-amber-500/30">
+                          📄 Ek 1-a: SMMM / YMM Onaylı Çok Zor Durum Raporu
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300 font-extrabold text-[11px] border border-teal-500/30">
+                          📝 Ek 1-b: Borçlu Beyanına Dayalı Mali Durum Bildirim Formu
                         </span>
                       )}
                     </div>
@@ -1037,29 +1176,60 @@ export default function App() {
             Bu programın kullanımı tamamen kullanıcının kendi sorumluluğundadır. Program sağlayıcıları; doğruluk, eksiksizlik, güncellik veya belirli bir amaca uygunluk konusunda hiçbir garanti vermemektedir. Kullanıcı, yürürlükteki mevzuata uymakla ve programın kullanımından doğabilecek tüm sorumluluğu kabul etmekle yükümlüdür. Program üzerinden sunulan içerikler hukuki, mali veya profesyonel danışmanlık niteliği taşımaz.
           </p>
           <div className="flex items-center gap-2.5 text-slate-400 shrink-0 self-end md:self-center">
-            {/* Canlı durumu göstergesi (Sadece site kapalıyken footerda zarifçe yer alır) */}
-            {!isSiteOpen && (
-              <button
-                type="button"
-                onClick={() => setSiteStatusModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[10px] font-bold border border-rose-500/20 transition-all cursor-pointer"
-                title="Canlı site şu an ziyaretçilere kapalıdır. Yönetmek için tıklayın (Alt + K)"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                <span>Canlı: Kapalı</span>
-              </button>
+            {/* Yönetici Oturumu Açıkken Görünen Kontroller (YALNIZCA PIN İLE GİRİŞ YAPILDIKTAN SONRA GÖRÜNÜR) */}
+            {adminUnlockedSession && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleOpenAdminSection('analytics')}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 text-[11px] font-bold border border-teal-500/25 transition-all cursor-pointer shadow-xs"
+                  title="Yalnızca Yetkili Yönetici Görür: Canlı Ziyaretçi Sayacı ve Google Analytics"
+                >
+                  <BarChart3 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                  <span>Ziyaretçi Sayacı</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenAdminSection('status')}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-all cursor-pointer ${
+                    isSiteOpen
+                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20'
+                      : 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20'
+                  }`}
+                  title="Yönetici Paneli (Canlı / Bakım Ayarı)"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${isSiteOpen ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`} />
+                  <span>{isSiteOpen ? 'Site: Canlı' : 'Site: Kapalı'}</span>
+                </button>
+
+                {/* Oturumu Kapat / Gizle Butonu */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminUnlockedSession(false);
+                    try {
+                      sessionStorage.removeItem('sgk_admin_unlocked');
+                      sessionStorage.removeItem('sgk_admin_pin');
+                    } catch {}
+                    showToast('Yönetici oturumu kapatıldı. Kontroller gizlendi.');
+                  }}
+                  className="px-2 py-0.5 rounded-full bg-slate-500/10 hover:bg-rose-500/15 text-slate-400 hover:text-rose-500 text-[10px] font-medium transition-all cursor-pointer"
+                  title="Yönetici oturumunu kapat ve kontrolleri gizle"
+                >
+                  Çıkış
+                </button>
+              </>
             )}
-            <span className="font-mono">© {new Date().getFullYear()}</span>
-            {/* Ziyaretçilerin farketmeyeceği şeffaf yönetici butonu */}
-            <button
-              type="button"
-              onClick={() => setSiteStatusModalOpen(true)}
-              className="opacity-25 hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-teal-500 cursor-pointer"
-              title="Yönetici (Alt + K)"
-              aria-label="Yönetici Paneli"
+
+            {/* Telif Yazısı: Çift tıklandığında yalnızca yöneticinin bildiği gizli doğrulama penceresini açar */}
+            <span
+              onDoubleClick={() => handleOpenAdminSection('status')}
+              className="font-mono cursor-default select-none text-slate-400 dark:text-slate-500"
+              title="T.C. Sosyal Güvenlik Kurumu"
             >
-              <Lock className="w-3 h-3" />
-            </button>
+              © {new Date().getFullYear()}
+            </span>
           </div>
         </div>
       </footer>
@@ -1087,6 +1257,21 @@ export default function App() {
         isSiteOpen={isSiteOpen}
         onToggleSiteStatus={handleToggleSiteStatus}
         onPreviewMaintenance={() => setPreviewVisitorView(true)}
+        onOpenAnalytics={() => setAnalyticsModalOpen(true)}
+        onOpenChangePin={() => setAdminAuthModalOpen(true)}
+      />
+
+      {/* Ziyaretçi Sayacı ve Google Analytics Modalı */}
+      <AnalyticsModal
+        isOpen={analyticsModalOpen}
+        onClose={() => setAnalyticsModalOpen(false)}
+      />
+
+      {/* Yönetici Doğrulama (PIN / Email) Modalı */}
+      <AdminAuthModal
+        isOpen={adminAuthModalOpen}
+        onClose={() => setAdminAuthModalOpen(false)}
+        onSuccess={handleAdminAuthSuccess}
       />
     </div>
   );

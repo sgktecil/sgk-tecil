@@ -7,6 +7,8 @@ interface SiteStatusModalProps {
   isSiteOpen: boolean;
   onToggleSiteStatus: (isOpen: boolean) => Promise<void> | void;
   onPreviewMaintenance?: () => void;
+  onOpenAnalytics?: () => void;
+  onOpenChangePin?: () => void;
 }
 
 export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
@@ -15,6 +17,8 @@ export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
   isSiteOpen,
   onToggleSiteStatus,
   onPreviewMaintenance,
+  onOpenAnalytics,
+  onOpenChangePin,
 }) => {
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -47,9 +51,15 @@ export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
               <Power className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-100">
-                Canlı Yayın &amp; Erişim Durumu
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-100">
+                  Canlı Yayın &amp; Erişim Durumu
+                </h3>
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                  <ShieldCheck className="w-3 h-3" />
+                  Yönetici Paneli
+                </span>
+              </div>
               <p className="text-[11px] text-slate-500">
                 Tüm ziyaretçiler için anında geçerli olur (Sunucu Senkronlu)
               </p>
@@ -125,8 +135,34 @@ export const SiteStatusModal: React.FC<SiteStatusModalProps> = ({
             </>
           )}
 
+          {onOpenAnalytics && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenAnalytics();
+              }}
+              className="w-full py-2.5 rounded-2xl border border-teal-500/30 bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <span>📊 Canlı Ziyaretçi Sayacı &amp; Google Analytics</span>
+            </button>
+          )}
+
+          {onOpenChangePin && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenChangePin();
+              }}
+              className="w-full py-2 rounded-2xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <span>🔑 Yönetici PIN Kodunu Değiştir</span>
+            </button>
+          )}
+
           <div className="text-[11px] text-slate-500 text-center leading-normal pt-1">
-            Site kapalıyken yönetim için PIN kodu <strong>1923</strong> veya <strong>6183</strong> olarak ayarlanmıştır.
+            Yalnızca yetkili yönetici şifresiyle erişilebilir.
           </div>
         </div>
       </div>

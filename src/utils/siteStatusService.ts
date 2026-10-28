@@ -1,4 +1,5 @@
 import { safeStorage } from './storage';
+import { getActiveAdminPin } from './adminAuthService';
 
 export interface SiteStatusResponse {
   isOpen: boolean;
@@ -23,12 +24,11 @@ export async function fetchSiteStatus(): Promise<boolean> {
       }
     }
   } catch (err) {
-    console.warn('Sunucu site durumu sorgulanamadı, yerel durum kullanılıyor:', err);
+    console.warn('Sunucu site durumu sorgulanamadı:', err);
   }
 
-  // Yedek yerel kontrol
-  const local = safeStorage.getItem('sgk_site_canli_durumu', 'kapali');
-  return local === 'acik';
+  // Sunucuya ulaşılamazsa varsayılan açık
+  return true;
 }
 
 /**
@@ -38,14 +38,17 @@ export async function fetchSiteStatus(): Promise<boolean> {
 export async function updateSiteStatus(isOpen: boolean): Promise<boolean> {
   safeStorage.setItem('sgk_site_canli_durumu', isOpen ? 'acik' : 'kapali');
 
+  const adminPin = getActiveAdminPin() || '1923';
+
   try {
     const res = await fetch('/api/site-status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
+        ...(adminPin ? { 'x-admin-pin': adminPin } : {}),
       },
-      body: JSON.stringify({ isOpen }),
+      body: JSON.stringify({ isOpen, pin: adminPin }),
     });
 
     if (res.ok) {

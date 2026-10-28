@@ -51,12 +51,21 @@ export const MuvafakatnameModal: React.FC<MuvafakatnameModalProps> = ({
   initialBorrower,
 }) => {
   const [doc, setDoc] = useState<MuvafakatnameDocument>(() => {
-    // 1. Priority: localStorage draft
+    // 1. Priority: localStorage draft (eski sahte/örnek veri içeriyorsa temizle)
     try {
       const saved = localStorage.getItem('muvafakatname_doc_draft');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && (parsed.title || parsed.sgkDetails || parsed.templateType)) {
+        if (
+          parsed?.grantor?.fullName?.includes('ÜMİT') ||
+          parsed?.grantor?.fullName?.includes('ÖZDEMİR') ||
+          parsed?.grantor?.tcNumber === '12345678901' ||
+          parsed?.grantor?.address?.includes('ALTINORDU') ||
+          parsed?.sgkDetails?.debtorName?.includes('ÜMİT') ||
+          parsed?.sgkDetails?.debtorName?.includes('ÖZDEMİR')
+        ) {
+          localStorage.removeItem('muvafakatname_doc_draft');
+        } else if (parsed && (parsed.title || parsed.sgkDetails || parsed.templateType)) {
           return parsed;
         }
       }
@@ -78,11 +87,27 @@ export const MuvafakatnameModal: React.FC<MuvafakatnameModalProps> = ({
       sgkDetails: {
         ...(baseTemplate.sgkDetails || ({} as any)),
         debtorName: initialBorrower?.unvan || '',
+        debtPeriod: '',
+        debtAmount: '',
+        debtType: '',
+        propertyDetails: '',
+        spouseFullName: '',
+        spouseTcNumber: '',
+        icraOfficer1Name: '',
+        icraOfficer2Name: '',
       },
       grantor: {
-        ...(baseTemplate.grantor || ({} as any)),
-        address: initialBorrower?.isyeriAdresi || '',
-        tcNumber: initialBorrower?.tcknVkn || '',
+        fullName: '',
+        tcNumber: '',
+        address: '',
+        phone: '',
+        title: '',
+        taxNumber: '',
+      },
+      grantor2: {
+        enabled: false,
+        fullName: '',
+        tcNumber: '',
       },
     };
   });
@@ -103,15 +128,6 @@ export const MuvafakatnameModal: React.FC<MuvafakatnameModalProps> = ({
   const formatMenuRef = useRef<HTMLDivElement>(null);
   const a4Ref = useRef<HTMLDivElement>(null);
 
-  const [slotStyle, setSlotStyle] = useState<'popover' | 'modal'>(() => {
-    try {
-      const saved = localStorage.getItem('sgk_slot_style');
-      if (saved === 'modal' || saved === 'popover') return saved;
-    } catch {
-      // ignore
-    }
-    return 'popover';
-  });
 
   // Handle click outside dropdowns
   useEffect(() => {
@@ -129,26 +145,6 @@ export const MuvafakatnameModal: React.FC<MuvafakatnameModalProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [templateMenuOpen, formatMenuOpen]);
 
-  useEffect(() => {
-    const handleStyleChange = (e: Event) => {
-      const customEvent = e as CustomEvent<'popover' | 'modal'>;
-      if (customEvent.detail && (customEvent.detail === 'modal' || customEvent.detail === 'popover')) {
-        setSlotStyle(customEvent.detail);
-      }
-    };
-    window.addEventListener('sgk_slot_style_change', handleStyleChange);
-    return () => window.removeEventListener('sgk_slot_style_change', handleStyleChange);
-  }, []);
-
-  const handleToggleSlotStyle = (newStyle: 'popover' | 'modal') => {
-    setSlotStyle(newStyle);
-    try {
-      localStorage.setItem('sgk_slot_style', newStyle);
-    } catch {
-      // ignore
-    }
-    window.dispatchEvent(new CustomEvent('sgk_slot_style_change', { detail: newStyle }));
-  };
 
   // Sync active document state to localStorage
   useEffect(() => {
@@ -167,9 +163,8 @@ export const MuvafakatnameModal: React.FC<MuvafakatnameModalProps> = ({
       setDoc((prev) => {
         const needsDebtorUpdate = !prev.sgkDetails?.debtorName && initialBorrower.unvan;
         const needsInstUpdate = (!prev.institution || prev.institution === 'SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜNE') && initialBorrower.ilMudurlugu;
-        const needsGrantorUpdate = !prev.grantor?.address && initialBorrower.isyeriAdresi;
 
-        if (needsDebtorUpdate || needsInstUpdate || needsGrantorUpdate) {
+        if (needsDebtorUpdate || needsInstUpdate) {
           const newInst = initialBorrower.ilMudurlugu
             ? `${initialBorrower.ilMudurlugu.toUpperCase()} SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜ${initialBorrower.sgkMerkezi ? ' / ' + initialBorrower.sgkMerkezi.toUpperCase() + ' SOSYAL GÜVENLİK MERKEZİNE' : 'NE'}`
             : prev.institution;
@@ -180,11 +175,6 @@ export const MuvafakatnameModal: React.FC<MuvafakatnameModalProps> = ({
             sgkDetails: {
               ...(prev.sgkDetails || ({} as any)),
               debtorName: prev.sgkDetails?.debtorName || initialBorrower.unvan || '',
-            },
-            grantor: {
-              ...prev.grantor,
-              address: prev.grantor?.address || initialBorrower.isyeriAdresi || '',
-              tcNumber: prev.grantor?.tcNumber || initialBorrower.tcknVkn || '',
             },
           };
         }
@@ -338,7 +328,10 @@ ${doc.additionalClauses && doc.additionalClauses.length > 0 ? '\nÖZEL HÜKÜMLE
       if (t.id === 'sgk-ek9-gayrimenkul') {
         return doc.sgkDetails?.includeSpouseConsent === true;
       }
-      return doc.sgkDetails?.includeSpouseConsent !== true;
+      if (t.id === 'sgk-ek9-tasit') {
+        return doc.sgkDetails?.customPropertyTypeText?.includes('taşıt') || (doc.sgkDetails?.propertyType === 'menkul' && Boolean(doc.sgkDetails?.propertyDetails?.includes('Plaka')));
+      }
+      return doc.sgkDetails?.includeSpouseConsent !== true && !doc.sgkDetails?.customPropertyTypeText?.includes('taşıt');
     }
     return t.data.subject === doc.subject || t.data.title === doc.title;
   }) || OFFICIAL_TEMPLATES[0];
@@ -456,8 +449,8 @@ ${doc.additionalClauses && doc.additionalClauses.length > 0 ? '\nÖZEL HÜKÜMLE
             {templateMenuOpen && (
               <div className="absolute top-full left-0 mt-1.5 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-stone-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-3 py-1.5 border-b border-stone-100">
-                  <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
-                    Resmi Hukuki Şablonlar
+                  <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider">
+                    SGK Resmi Muvafakatname Şablonları
                   </span>
                 </div>
                 <div className="max-h-80 overflow-y-auto py-1">
@@ -669,33 +662,6 @@ ${doc.additionalClauses && doc.additionalClauses.length > 0 ? '\nÖZEL HÜKÜMLE
             )}
           </div>
 
-          {/* Slot Edit Style Switcher */}
-          <div className="flex items-center gap-0.5 bg-stone-200/70 rounded-xl p-0.5 border border-stone-300/80 text-xs">
-            <button
-              type="button"
-              onClick={() => handleToggleSlotStyle('popover')}
-              className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                slotStyle === 'popover'
-                  ? 'bg-white text-stone-900 shadow-xs'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-              title="Kompakt Baloncuk: Kelimenin hemen altında açılır (Ekranı kapatmaz)"
-            >
-              <span>💬 Baloncuk</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleToggleSlotStyle('modal')}
-              className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                slotStyle === 'modal'
-                  ? 'bg-white text-stone-900 shadow-xs'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-              title="Yay Animasyonlu Modal: Ekranın ortasında yaylanan pencere açılır"
-            >
-              <span>🗖 Modal</span>
-            </button>
-          </div>
 
           {/* Zoom Controls */}
           <div className="flex items-center gap-0.5 bg-stone-200/70 rounded-xl p-0.5 border border-stone-300/80 text-xs">

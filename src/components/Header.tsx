@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Wrench,
-  ChevronDown,
   Scale,
   Building2,
   Send,
@@ -9,9 +8,9 @@ import {
   Sun,
   Moon,
   Sparkles,
-  Check,
   Palette,
-  FileSignature
+  FileSignature,
+  BarChart3
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -22,22 +21,19 @@ interface HeaderProps {
   onSelectTheme: (theme: 'light' | 'dark' | 'amoled') => void;
   isSiteOpen?: boolean;
   onOpenSiteStatusModal?: () => void;
+  onOpenAnalytics?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenDrawer,
-  onOpenTaksitFormu,
   onOpenMuvafakatname,
   theme = 'light',
   onSelectTheme,
-  isSiteOpen = true,
-  onOpenSiteStatusModal,
+  onOpenAnalytics,
 }) => {
   const [currentDateTime, setCurrentDateTime] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [themeOpen, setThemeOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
-  const themeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const updateTime = () => {
@@ -66,196 +62,29 @@ export const Header: React.FC<HeaderProps> = ({
       if (toolsRef.current && !toolsRef.current.contains(e.target as Node)) {
         setToolsOpen(false);
       }
-      if (themeRef.current && !themeRef.current.contains(e.target as Node)) {
-        setThemeOpen(false);
-      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getThemeInfo = (t: 'light' | 'dark' | 'amoled') => {
-    switch (t) {
-      case 'light':
-        return { label: 'Aydınlık', icon: Sun, color: 'text-amber-500' };
-      case 'dark':
-        return { label: 'Karanlık', icon: Moon, color: 'text-indigo-400' };
-      case 'amoled':
-        return { label: 'AMOLED', icon: Sparkles, color: 'text-purple-400' };
-    }
-  };
-
-  const currentThemeInfo = getThemeInfo(theme);
-  const CurrentThemeIcon = currentThemeInfo.icon;
-
   return (
     <>
-      {/* Floating Toolbar (Top-Right) */}
+      {/* Floating Toolbar (Top-Right): Yalnızca Araçlar Simgesi */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-2 no-print">
-        {/* Tema Seçim Menüsü */}
-        <div className="relative" ref={themeRef}>
-          <button
-            onClick={() => {
-              setThemeOpen(!themeOpen);
-              setToolsOpen(false);
-            }}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-full shadow-lg border transition-all duration-200 cursor-pointer hover:scale-[1.02]"
-            style={{
-              backgroundColor: 'var(--bg-elevated)',
-              borderColor: 'var(--border-primary)',
-              color: 'var(--text-primary)',
-            }}
-            aria-label="Tema Seçimi"
-            title="Görünüm & Tema Seçenekleri (Aydınlık, Karanlık, AMOLED)"
-          >
-            <CurrentThemeIcon className={`w-3.5 h-3.5 ${currentThemeInfo.color}`} />
-            <span>{currentThemeInfo.label}</span>
-            <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${themeOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          {themeOpen && (
-            <div
-              className="absolute right-0 mt-2 w-64 rounded-2xl shadow-2xl border p-2 text-xs z-50 animate-in fade-in zoom-in-95 duration-150"
-              style={{
-                backgroundColor: 'var(--bg-elevated)',
-                borderColor: 'var(--border-primary)',
-                color: 'var(--text-primary)',
-              }}
-            >
-              <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-primary)' }}>
-                <span className="font-extrabold flex items-center gap-1.5 text-slate-800 dark:text-slate-100">
-                  <Palette className="w-3.5 h-3.5 text-teal-600" />
-                  Görünüm &amp; Tema
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold">
-                  3 Mod
-                </span>
-              </div>
-
-              <div className="p-1 space-y-1">
-                {/* 1. Aydınlık */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSelectTheme('light');
-                    setThemeOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all text-left cursor-pointer ${
-                    theme === 'light'
-                      ? 'bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-100'
-                      : 'hover:bg-slate-500/10 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-500">
-                      <Sun className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold flex items-center gap-1.5">
-                        <span>Aydınlık</span>
-                        {theme === 'light' && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-white font-bold">
-                            Aktif
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                        Yüksek kontrastlı açık tema
-                      </div>
-                    </div>
-                  </div>
-                  {theme === 'light' && <Check className="w-4 h-4 text-amber-600" />}
-                </button>
-
-                {/* 2. Karanlık */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSelectTheme('dark');
-                    setThemeOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all text-left cursor-pointer ${
-                    theme === 'dark'
-                      ? 'bg-indigo-500/15 border border-indigo-500/40 text-indigo-900 dark:text-indigo-100'
-                      : 'hover:bg-slate-500/10 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400">
-                      <Moon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold flex items-center gap-1.5">
-                        <span>Karanlık</span>
-                        {theme === 'dark' && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-600 text-white font-bold">
-                            Aktif
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                        Koyu slate gri zemin
-                      </div>
-                    </div>
-                  </div>
-                  {theme === 'dark' && <Check className="w-4 h-4 text-indigo-400" />}
-                </button>
-
-                {/* 3. AMOLED */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSelectTheme('amoled');
-                    setThemeOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all text-left cursor-pointer ${
-                    theme === 'amoled'
-                      ? 'bg-purple-500/15 border border-purple-500/40 text-purple-900 dark:text-purple-100'
-                      : 'hover:bg-slate-500/10 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold flex items-center gap-1.5">
-                        <span>AMOLED</span>
-                        {theme === 'amoled' && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-600 text-white font-bold">
-                            Aktif
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                        Saf siyah (#000000) OLED
-                      </div>
-                    </div>
-                  </div>
-                  {theme === 'amoled' && <Check className="w-4 h-4 text-purple-400" />}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Tools Menu */}
         <div className="relative" ref={toolsRef}>
           <button
-            onClick={() => {
-              setToolsOpen(!toolsOpen);
-              setThemeOpen(false);
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-full shadow-lg border transition-all duration-200 cursor-pointer"
+            type="button"
+            onClick={() => setToolsOpen(!toolsOpen)}
+            className="flex items-center justify-center w-9 h-9 rounded-full shadow-lg border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95"
             style={{
               backgroundColor: 'var(--bg-elevated)',
               borderColor: 'var(--border-primary)',
               color: 'var(--text-primary)',
             }}
+            aria-label="Araçlar & Görünüm Menüsü"
+            title="Araçlar & Görünüm (Aydınlık / Karanlık Tema)"
           >
-            <Wrench className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Araçlar</span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${toolsOpen ? 'rotate-180' : ''}`} />
+            <Wrench className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
           </button>
 
           {toolsOpen && (
@@ -267,34 +96,71 @@ export const Header: React.FC<HeaderProps> = ({
                 color: 'var(--text-primary)',
               }}
             >
-              {/* Resmî Muvafakatname ve Belge Düzenleyici */}
+              {/* Aydınlık / Karanlık / AMOLED Tema Seçim Bölümü (Araçlar içine taşındı) */}
+              <div className="p-2 border-b mb-1" style={{ borderColor: 'var(--border-primary)' }}>
+                <div className="flex items-center justify-between mb-1.5 px-1">
+                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                    Görünüm &amp; Tema
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono font-medium">
+                    {theme === 'light' ? 'Aydınlık' : theme === 'dark' ? 'Karanlık' : 'AMOLED'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => onSelectTheme('light')}
+                    className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      theme === 'light'
+                        ? 'bg-white dark:bg-slate-700 text-amber-600 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                    title="Aydınlık tema"
+                  >
+                    <Sun className="w-3 h-3 text-amber-500" />
+                    <span>Aydınlık</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onSelectTheme('dark')}
+                    className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      theme === 'dark'
+                        ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                    title="Karanlık tema"
+                  >
+                    <Moon className="w-3 h-3 text-indigo-400" />
+                    <span>Karanlık</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onSelectTheme('amoled')}
+                    className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      theme === 'amoled'
+                        ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                    title="AMOLED saf siyah tema"
+                  >
+                    <Sparkles className="w-3 h-3 text-purple-400" />
+                    <span>AMOLED</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Araçlar Başlığı */}
+              <div className="px-3 py-1 text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
+                Resmî Yardımcı Araçlar
+              </div>
+
+              {/* 1. Maaş Haczi Hesaplama */}
               <button
                 type="button"
-                onClick={() => {
-                  onOpenMuvafakatname?.();
-                  setToolsOpen(false);
-                }}
-                className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-500/10 transition-colors text-left cursor-pointer border border-amber-500/30 bg-amber-500/10 mb-1.5"
-              >
-                <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300">
-                  <FileSignature className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <span>EK-9 Muvafakatname</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-600 text-white font-black">
-                      Deneme Aşamasında
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
-                    SGK 2024/12 EK-9 Resmî Genelge Formu (Deneme)
-                  </div>
-                </div>
-              </button>
-
-
-
-              <button
                 onClick={() => {
                   onOpenDrawer('maasTab', '⚖️ Maaş Haczi Hesaplama');
                   setToolsOpen(false);
@@ -310,7 +176,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </button>
 
+              {/* 2. Banka Rehberi */}
               <button
+                type="button"
                 onClick={() => {
                   onOpenDrawer('bankaTab', '🏦 Banka Rehberi & DETSİS/KEP');
                   setToolsOpen(false);
@@ -326,7 +194,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </button>
 
+              {/* 3. Tebligat Süre Hesaplama */}
               <button
+                type="button"
                 onClick={() => {
                   onOpenDrawer('tebligatTab', '📨 Tebligat Süre Hesaplama');
                   setToolsOpen(false);
@@ -342,7 +212,34 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </button>
 
+              {/* 4. Resmî Muvafakatname ve Belge Düzenleyici (Aşağıdan ikinci) */}
               <button
+                type="button"
+                onClick={() => {
+                  onOpenMuvafakatname?.();
+                  setToolsOpen(false);
+                }}
+                className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-500/10 transition-colors text-left cursor-pointer"
+              >
+                <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                  <FileSignature className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <span>Muvafakatname Düzenleyici</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-teal-600 text-white font-extrabold">
+                      A4
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                    SGK Ek-9 &amp; Resmî Teminat Belgeleri
+                  </div>
+                </div>
+              </button>
+
+              {/* 5. Bilgi Portalı & 2024/12 Genelge (En alttaki araç) */}
+              <button
+                type="button"
                 onClick={() => {
                   onOpenDrawer('bilgiTab', '📖 Bilgi Portalı & 2024/12 (2026/15) Genelge');
                   setToolsOpen(false);
@@ -357,6 +254,33 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">2024/12 &amp; 2026/15 Mevzuat</div>
                 </div>
               </button>
+
+              {/* 6. Ziyaretçi İstatistikleri & Giriş Sayacı (Yönetici Ortamı) */}
+              {onOpenAnalytics && (
+                <div className="pt-1 mt-1 border-t" style={{ borderColor: 'var(--border-primary)' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenAnalytics();
+                      setToolsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-indigo-500/10 transition-colors text-left cursor-pointer group"
+                  >
+                    <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                      <BarChart3 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                        <span>Ziyaretçi Sayacı</span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-600 text-white font-extrabold">
+                          Yönetici
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-medium">Girişler ve analitik veriler</div>
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
