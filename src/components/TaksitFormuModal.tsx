@@ -187,9 +187,9 @@ export const TaksitFormuModal: React.FC<TaksitFormuModalProps> = ({
     return getTodayDateTR();
   };
 
-  const [customBorc, setCustomBorc] = useState(() => formatTL(borc));
-  const [customTaksit, setCustomTaksit] = useState(() => taksitSayisi.toString());
-  const [customPesinat, setCustomPesinat] = useState(() => formatTL(pesinatTutari));
+  const [customBorc, setCustomBorc] = useState(() => (borc > 0 ? formatTL(borc) : ''));
+  const [customTaksit, setCustomTaksit] = useState(() => (taksitSayisi > 0 ? taksitSayisi.toString() : '36'));
+  const [customPesinat, setCustomPesinat] = useState(() => (pesinatTutari > 0 ? formatTL(pesinatTutari) : ''));
   // Peşinat Giriş Modu: 'taksiteGore' (Taksit sayısına göre otomatik 1 taksit) | 'yuzdeOn' (%10) | 'manuel' (Kullanıcının serbest girdiği tutar)
   const [pesinatMode, setPesinatMode] = useState<'taksiteGore' | 'yuzdeOn' | 'manuel'>(pesinatModeProp || 'taksiteGore');
 
@@ -202,6 +202,22 @@ export const TaksitFormuModal: React.FC<TaksitFormuModalProps> = ({
   // Canlı Hesaplanan Tecil İşlem Sonucu
   const liveCalculation = useMemo(() => {
     const numBorc = parseTL(customBorc);
+    if (numBorc <= 0) {
+      return {
+        anaPara: 0,
+        pesinat: 0,
+        kalanBorc: 0,
+        taksitSayisi: 0,
+        faizOrani: faizOrani || 39,
+        toplamFaiz: 0,
+        toplamOdeme: 0,
+        aylikSabitTaksit: 0,
+        ilkTaksitTutari: 0,
+        sonTaksitTutari: 0,
+        planTipi: 'kanuni' as const,
+        taksitler: [],
+      };
+    }
     const cleanedTaksit = customTaksit.replace(/[^\d]/g, '');
     const numTaksit = parseInt(cleanedTaksit, 10) || taksitSayisi || 1;
     const numPesinat = parseTL(customPesinat);
@@ -211,7 +227,7 @@ export const TaksitFormuModal: React.FC<TaksitFormuModalProps> = ({
 
   // Kullanıcı kesin kuralı: Formdaki tarih her zaman işlemin yapıldığı güncel işlem tarihi (işlem günü) olmalıdır
   const [customTarih, setCustomTarih] = useState(() => getIslemTarihi());
-  const [customLikidite, setCustomLikidite] = useState(() => (likiditeOrani > 0 ? likiditeOrani.toFixed(2) : '0,45'));
+  const [customLikidite, setCustomLikidite] = useState(() => (likiditeOrani > 0 ? likiditeOrani.toFixed(2) : ''));
 
   // Kullanıcı kuralı: Taksit sayısı yazılınca peşinat (ilk taksit) otomatik olarak değişsin!
   const handleCustomTaksitChange = (val: string) => {
@@ -363,16 +379,16 @@ export const TaksitFormuModal: React.FC<TaksitFormuModalProps> = ({
   const [showPrintPrompt, setShowPrintPrompt] = useState(false);
   const [parsedBadges, setParsedBadges] = useState<ParsedBadge[]>([]);
 
-  // Borçlu bilgileri (Başlangıçta tespit edilen veya varsayılan ORDU / ALTINORDU)
+  // Borçlu bilgileri (Kullanıcı giriş yapıncaya kadar tamamen boş)
   const [borclu, setBorclu] = useState<BorcluBilgileri>(() => ({
-    ilMudurlugu: initialBorclu?.ilMudurlugu || 'ORDU',
-    sgkMerkezi: initialBorclu?.sgkMerkezi || 'ALTINORDU',
+    ilMudurlugu: initialBorclu?.ilMudurlugu || '',
+    sgkMerkezi: initialBorclu?.sgkMerkezi || '',
     tcknVkn: initialBorclu?.tcknVkn || '',
-    unvan: initialBorclu?.unvan || 'ÜMİT ÖZTÜRK',
-    sigortaNo: extractSicilSiraNo(initialBorclu?.sigortaNo || '2 9313 01 01 1088448 052 20-83 000 001'),
+    unvan: initialBorclu?.unvan || '',
+    sigortaNo: initialBorclu?.sigortaNo ? extractSicilSiraNo(initialBorclu.sigortaNo) : '',
     vergiDairesi: initialBorclu?.vergiDairesi || '',
     ticaretSicilNo: initialBorclu?.ticaretSicilNo || '',
-    isyeriAdresi: initialBorclu?.isyeriAdresi || 'YENİ MAH.328.SOK. Dış kapı no:8 İç kapı no:B - ORDU ALTINORDU',
+    isyeriAdresi: initialBorclu?.isyeriAdresi || '',
     telefon: initialBorclu?.telefon || '',
     faks: initialBorclu?.faks || '',
     gsm: initialBorclu?.gsm || '',

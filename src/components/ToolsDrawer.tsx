@@ -123,7 +123,7 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({
   const [asgariUcretInput, setAsgariUcretInput] = useState(() => {
     return safeStorage.getItem('sgk_asgari_ucret', '28.000,75');
   });
-  const [maasInput, setMaasInput] = useState('30.000,00');
+  const [maasInput, setMaasInput] = useState('');
   const [asgariUstuSecim, setAsgariUstuSecim] = useState<'1/4' | '1/3'>('1/4');
   const [maasCopied, setMaasCopied] = useState(false);
   const [showAsgariSettings, setShowAsgariSettings] = useState(false);

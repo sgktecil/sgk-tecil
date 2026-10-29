@@ -88,6 +88,28 @@ export const TaksitTablosu: React.FC<TaksitTablosuProps> = ({
 
   const toplamAnaParaHesaplanan = taksitler.reduce((acc, t) => acc + t.anaPara, 0);
 
+  if (toplamBorc <= 0 || taksitler.length === 0) {
+    return (
+      <div
+        className="rounded-3xl border shadow-xl p-8 text-center space-y-3 cursor-default"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          borderColor: 'var(--border-primary)',
+        }}
+      >
+        <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 flex items-center justify-center mx-auto">
+          <Calendar className="w-6 h-6" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+          Resmî Geri Ödeme Planı (Veri Bekleniyor)
+        </h3>
+        <p className="text-xs text-slate-500 max-w-md mx-auto">
+          Taksit ve faiz cetvelini görüntülemek için lütfen yukarıdaki alana borç tutarını yazınız veya döküm yapıştırınız.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div
       className="rounded-3xl border shadow-xl p-6 sm:p-8 space-y-6 group"

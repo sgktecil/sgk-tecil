@@ -202,8 +202,8 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isDevHost, adminUnlockedSession]);
 
-  // Form Inputs
-  const [borcInput, setBorcInput] = useState('12.000.000,00');
+  // Form Inputs - Kullanıcı giriş yapıncaya kadar tamamen boş başlatılır
+  const [borcInput, setBorcInput] = useState('');
   const [taksitSayisi, setTaksitSayisi] = useState(36);
   const [taksitInput, setTaksitInput] = useState('36');
   const [pesinatTarihi, setPesinatTarihi] = useState(() => getTodayDateISO());
@@ -211,7 +211,7 @@ export default function App() {
   const [teminatLimitiInput, setTeminatLimitiInput] = useState('10.000.000,00');
   // Peşinat modu: 'taksiteGore' (Borç / Taksit Sayısı) | 'yuzdeOn' (Borç * 0.10) | 'manuel'
   const [pesinatMode, setPesinatMode] = useState<'taksiteGore' | 'yuzdeOn' | 'manuel'>('taksiteGore');
-  const [pesinatInput, setPesinatInput] = useState('333.333,33');
+  const [pesinatInput, setPesinatInput] = useState('');
 
   // Accordion toggles
   const [likiditeOpen, setLikiditeOpen] = useState(false);
@@ -232,12 +232,9 @@ export default function App() {
   const [planTipi, setPlanTipi] = useState<'kanuni' | 'esit'>('kanuni');
   const [pesinatDahilMi, setPesinatDahilMi] = useState(false);
 
-  // Hesaplama sonucu
+  // Hesaplama sonucu - Borç girilmeden önce boş cetvel
   const [hesapSonucu, setHesapSonucu] = useState(() => {
-    const borc = parseTL(borcInput);
-    const pesinat = parseTL(pesinatInput);
-    const faiz = parseFloat(faizOraniInput) || 39;
-    return calculate6183(borc, taksitSayisi, pesinat, pesinatTarihi, faiz, 'kanuni', false);
+    return calculate6183(0, taksitSayisi, 0, pesinatTarihi, 39, 'kanuni', false);
   });
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -567,7 +564,7 @@ export default function App() {
                     onChange={(e) => handleBorcChange(e.target.value)}
                     onBlur={handleBorcBlur}
                     className="form-control-custom pr-9 font-bold"
-                    placeholder="12.000.000,00"
+                    placeholder="Örn: 100.000,00"
                     required
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">₺</span>
@@ -716,7 +713,7 @@ export default function App() {
                       if (num >= 0) setPesinatInput(formatTL(num));
                     }}
                     className="form-control-custom pr-9 font-bold text-amber-700 dark:text-amber-400"
-                    placeholder="333.333,33"
+                    placeholder="Otomatik hesaplanır"
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">₺</span>
                 </div>
