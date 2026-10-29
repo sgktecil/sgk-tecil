@@ -509,7 +509,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="text"
                       value={doc.institution}
                       onChange={e => updateField('institution', e.target.value)}
-                      placeholder="Örn: İSTANBUL SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜNE"
+                      placeholder="SOSYAL GÜVENLİK İL MÜDÜRLÜĞÜ"
                       className="w-full p-2 bg-white border border-stone-300 rounded-md focus:ring-1 focus:ring-stone-900 outline-none font-semibold text-stone-900"
                     />
                     <span className="text-[10px] text-stone-400 mt-0.5 block">
@@ -541,7 +541,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="text"
                       value={doc.sgkDetails?.debtorName || ''}
                       onChange={e => updateSgk('debtorName', e.target.value)}
-                      placeholder="Örn: ABC İNŞAAT TİCARET LTD. ŞTİ. veya Ad Soyad"
+                      placeholder="Borçlu Kişi veya Şirket Ünvanı"
                       className="w-full p-2 bg-white border border-stone-300 rounded-md font-medium text-stone-900"
                     />
                   </div>
@@ -550,7 +550,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     <div>
                       <div className="flex items-center justify-between mb-0.5">
                         <label className="text-stone-600 font-medium">
-                          Borç Dönemi / Ayı
+                          Borç Dönemi
                         </label>
                         <button
                           type="button"
@@ -564,7 +564,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={doc.sgkDetails?.debtPeriod || ''}
                         onChange={e => updateSgk('debtPeriod', e.target.value)}
-                        placeholder="Örn: 2025/11 - 2026/04"
+                        placeholder="Dönem veya ay"
                         className="w-full p-1.5 bg-white border border-stone-300 rounded-md font-mono"
                       />
                     </div>
@@ -586,7 +586,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={doc.sgkDetails?.debtAmount || ''}
                         onChange={e => updateSgk('debtAmount', e.target.value)}
-                        placeholder="Örn: 250.000,00"
+                        placeholder="0,00"
                         className="w-full p-1.5 bg-white border border-stone-300 rounded-md font-mono font-bold"
                       />
                     </div>
@@ -609,7 +609,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       type="text"
                       value={doc.sgkDetails?.debtType || ''}
                       onChange={e => updateSgk('debtType', e.target.value)}
-                      placeholder="Örn: sigorta primi / idari para cezası"
+                      placeholder="Borç türü"
                       className="w-full p-1.5 bg-white border border-stone-300 rounded-md"
                     />
                   </div>
@@ -657,7 +657,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={doc.grantor.title || ''}
                         onChange={e => updateGrantor('title', e.target.value)}
-                        placeholder="Örn: Ünvanı / Şirket Müdürü"
+                        placeholder="Ünvanı / Sıfatı"
                         className="w-full p-1.5 bg-white border border-stone-300 rounded-md"
                       />
                     </div>
@@ -1087,7 +1087,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={doc.sgkDetails?.icraOfficer1Name || ''}
                         onChange={e => updateSgk('icraOfficer1Name', e.target.value)}
-                        placeholder="Örn: Ali KILIÇ (Sicil: 48921)"
+                        placeholder="Memur Ad Soyad / Sicil"
                         className="w-full p-1 bg-stone-50 border border-stone-300 rounded text-xs"
                       />
                     </div>
@@ -1114,7 +1114,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         type="text"
                         value={doc.sgkDetails?.icraOfficer2Name || ''}
                         onChange={e => updateSgk('icraOfficer2Name', e.target.value)}
-                        placeholder="Örn: Kemal AYDIN (Sicil: 31204)"
+                        placeholder="Memur Ad Soyad / Sicil"
                         className="w-full p-1 bg-stone-50 border border-stone-300 rounded text-xs"
                       />
                     </div>

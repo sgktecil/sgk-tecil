@@ -1618,7 +1618,7 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                     onChange={(e) => setBorclu({ ...borclu, ilMudurlugu: e.target.value })}
                     className="w-full px-2 py-1 rounded border font-bold text-xs uppercase"
                     style={{ backgroundColor: 'var(--bg-input)', borderColor: 'var(--border-primary)' }}
-                    placeholder="Örn: ORDU"
+                    placeholder=""
                   />
                 </div>
                 <div>
@@ -1629,7 +1629,7 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                     onChange={(e) => setBorclu({ ...borclu, sgkMerkezi: e.target.value })}
                     className="w-full px-2 py-1 rounded border font-bold text-xs uppercase"
                     style={{ backgroundColor: 'var(--bg-input)', borderColor: 'var(--border-primary)' }}
-                    placeholder="Örn: ALTINORDU"
+                    placeholder=""
                   />
                 </div>
                 <div>
@@ -1994,7 +1994,7 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                           }}
                           className="border-b border-black text-center font-bold min-w-[130px] px-1 focus:outline-none focus:bg-amber-50 uppercase print:border-b print:border-black"
                           placeholder="........................."
-                          title="Sosyal Güvenlik İl Müdürlüğü (Örn: ORDU)"
+                          title="Sosyal Güvenlik İl Müdürlüğü"
                         />
                         <span>Sosyal Güvenlik İl Müdürlüğüne</span>
                       </div>
@@ -2005,7 +2005,7 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                           onChange={(e) => setBorclu({ ...borclu, sgkMerkezi: e.target.value })}
                           className="border-b border-black text-center font-bold min-w-[130px] px-1 focus:outline-none focus:bg-amber-50 uppercase print:border-b print:border-black"
                           placeholder="........................."
-                          title="Sosyal Güvenlik Merkezi (Örn: ALTINORDU)"
+                          title="Sosyal Güvenlik Merkezi"
                         />
                         <span>Sosyal Güvenlik Merkezine</span>
                       </div>
@@ -2481,7 +2481,7 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                           }}
                           className="border-b border-black text-center font-bold min-w-[130px] px-1 focus:outline-none focus:bg-amber-50 uppercase print:border-b print:border-black"
                           placeholder="........................."
-                          title="Sosyal Güvenlik İl Müdürlüğü (Örn: ORDU)"
+                          title="Sosyal Güvenlik İl Müdürlüğü"
                         />
                         <span>Sosyal Güvenlik İl Müdürlüğüne</span>
                       </div>
@@ -2492,7 +2492,7 @@ Sosyal Güvenlik Merkezi: ALTINORDU SOSYAL GÜVENLİK MERKEZİ`;
                           onChange={(e) => setBorclu({ ...borclu, sgkMerkezi: e.target.value })}
                           className="border-b border-black text-center font-bold min-w-[130px] px-1 focus:outline-none focus:bg-amber-50 uppercase print:border-b print:border-black"
                           placeholder="........................."
-                          title="Sosyal Güvenlik Merkezi (Örn: ALTINORDU)"
+                          title="Sosyal Güvenlik Merkezi"
                         />
                         <span>Sosyal Güvenlik Merkezine</span>
                       </div>

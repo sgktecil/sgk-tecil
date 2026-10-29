@@ -267,7 +267,7 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
                             handleSave();
                           }
                         }}
-                        placeholder={example ? `Örn: ${example}` : 'Metin veya isim giriniz...'}
+                        placeholder="Metin veya değer giriniz..."
                         className="w-full pl-3.5 pr-10 py-2.5 text-sm font-bold text-stone-950 bg-stone-50 border-2 border-stone-300 rounded-xl focus:border-stone-900 focus:bg-white focus:outline-none transition-all shadow-inner"
                       />
                       {tempVal && (
@@ -281,22 +281,6 @@ export const AnimatedSlot: React.FC<AnimatedSlotProps> = ({
                         </button>
                       )}
                     </div>
-
-                    {/* Quick Example Pill */}
-                    {example && !tempVal && (
-                      <div className="flex items-center gap-2 pt-0.5">
-                        <span className="text-xs text-stone-500">Örnek:</span>
-                        <button
-                          type="button"
-                          onClick={() => setTempVal(example)}
-                          className="text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1"
-                          title="Örnek değeri alana doldur"
-                        >
-                          <span>"{example}"</span>
-                          <ArrowRight className="w-3 h-3 text-blue-500" />
-                        </button>
-                      </div>
-                    )}
 
                     {/* Live Sentence Preview */}
                     <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 text-xs space-y-1">

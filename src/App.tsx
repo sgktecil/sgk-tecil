@@ -564,7 +564,7 @@ export default function App() {
                     onChange={(e) => handleBorcChange(e.target.value)}
                     onBlur={handleBorcBlur}
                     className="form-control-custom pr-9 font-bold"
-                    placeholder="Örn: 100.000,00"
+                    placeholder="0,00"
                     required
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">₺</span>
@@ -618,7 +618,7 @@ export default function App() {
                       }
                     }}
                     className="form-control-custom font-black text-slate-900 dark:text-slate-100 pr-9 text-base w-full"
-                    placeholder="Örn: 59"
+                    placeholder="36"
                     required
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">Ay</span>
@@ -713,7 +713,7 @@ export default function App() {
                       if (num >= 0) setPesinatInput(formatTL(num));
                     }}
                     className="form-control-custom pr-9 font-bold text-amber-700 dark:text-amber-400"
-                    placeholder="Otomatik hesaplanır"
+                    placeholder="0,00"
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">₺</span>
                 </div>
