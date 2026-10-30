@@ -481,6 +481,7 @@ export default function App() {
         isSiteOpen={isSiteOpen}
         onOpenSiteStatusModal={() => handleOpenAdminSection('status')}
         onOpenAnalytics={() => handleOpenAdminSection('analytics')}
+        isAdmin={adminUnlockedSession}
       />
 
       {/* Main Container */}

@@ -22,6 +22,7 @@ interface HeaderProps {
   isSiteOpen?: boolean;
   onOpenSiteStatusModal?: () => void;
   onOpenAnalytics?: () => void;
+  isAdmin?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   theme = 'light',
   onSelectTheme,
   onOpenAnalytics,
+  isAdmin = false,
 }) => {
   const [currentDateTime, setCurrentDateTime] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -255,8 +257,8 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </button>
 
-              {/* 6. Ziyaretçi İstatistikleri & Giriş Sayacı (Yönetici Ortamı) */}
-              {onOpenAnalytics && (
+              {/* 6. Ziyaretçi İstatistikleri & Giriş Sayacı (Yalnızca Yönetici Oturumu Açıkken Görünür) */}
+              {isAdmin && onOpenAnalytics && (
                 <div className="pt-1 mt-1 border-t" style={{ borderColor: 'var(--border-primary)' }}>
                   <button
                     type="button"
